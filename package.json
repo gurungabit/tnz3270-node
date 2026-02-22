@@ -1,12 +1,16 @@
 {
-  "name": "tzn-node",
+  "name": "tnz-node",
   "version": "0.1.0",
-  "license": "MIT",
   "author": "gurungabit@gmail.com",
-  "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "bunchee": "^6.9.4",
+    "tsdx": "^2.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.0.18"
+  },
   "exports": {
     ".": {
       "import": {
@@ -20,13 +24,15 @@
     },
     "./package.json": "./package.json"
   },
+  "description": "TypeScript library for IBM mainframe TN3270 terminal automation",
+  "engines": {
+    "node": ">=24"
+  },
   "files": [
     "dist",
     "src"
   ],
-  "engines": {
-    "node": ">=20"
-  },
+  "license": "MIT",
   "scripts": {
     "dev": "tsdx dev",
     "build": "tsdx build",
@@ -38,10 +44,6 @@
     "typecheck": "tsdx typecheck",
     "prepublishOnly": "bun run build"
   },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "tsdx": "^2.0.0",
-    "typescript": "^5.7.2",
-    "vitest": "^4.0.18"
-  }
+  "type": "module",
+  "types": "./dist/index.d.ts"
 }
