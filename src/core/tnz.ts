@@ -13,6 +13,10 @@ import * as net from 'node:net';
 import * as tls from 'node:tls';
 
 import { AID, CMD, ORDER, QR_TYPE, SF_ID, TELNET } from '../types';
+import * as kb from './keyboard';
+import * as screen from './screen';
+import * as bufUtil from './buffer';
+
 import type { CodecEntry, TnzOptions } from '../types';
 import { getCodec } from '../utils/codepage';
 import {
@@ -251,7 +255,7 @@ export class Tnz extends EventEmitter {
   private _startTlsCompleted = false;
   private _verifyCert = true;
   private _eor = false;
-  private _tn3270e = false;
+  /** @internal */ _tn3270e = false;
   private _workBuffer = Buffer.alloc(0);
   private _pendingRecord = Buffer.alloc(0);
   private _sendBuf: Buffer[] = [];
@@ -273,7 +277,7 @@ export class Tnz extends EventEmitter {
   _procBg = 0;
   private _encoding = 'cp037';
   private _codec: CodecEntry;
-  private _codecF1: CodecEntry | null = null;
+  /** @internal */ _codecF1: CodecEntry | null = null;
   
   /** Optional callback fired when the screen is updated by the host. */
   onScreenUpdate?: () => void;
@@ -839,23 +843,6 @@ export class Tnz extends EventEmitter {
     return addr;
   }
 
-  /**
-   * Encode an integer buffer address to 2 bytes.
-   *
-   * Uses 12-bit (6+6) encoding for small buffers, 14/16-bit otherwise.
-   *
-   * Reference: Python TNZ tnz.py lines 317-331
-   */
-  addressBytes(addr: number): Buffer {
-    if (!this.addr16bit && this.bufferSize <= 4095) {
-      // 12-bit encoding: 6+6 with bit6 translation
-      const [high6, low6] = [Math.floor(addr / 64), addr % 64];
-      return Buffer.from([bit6(high6), bit6(low6)]);
-    }
-
-    // 14-bit or 16-bit: big-endian
-    return Buffer.from([(addr >> 8) & 0xff, addr & 0xff]);
-  }
 
   // =========================================================================
   // Telnet negotiation and sending
@@ -1321,270 +1308,22 @@ export class Tnz extends EventEmitter {
   }
 
   // =========================================================================
-  // Buffer helpers
+  // Buffer helpers (Delegated)
   // =========================================================================
 
-  /**
-   * Update circular byte array — copy src into dst starting at `start`,
-   * wrapping around if necessary.
-   *
-   * Reference: Python TNZ tnz.py lines 4750-4792
-   */
-  static ucba(
-    dst: Uint8Array,
-    start: number,
-    src: ArrayLike<number>,
-    begIdx = 0,
-    endIdx?: number,
-  ): void {
-    const end = endIdx ?? src.length;
-    const dataLen = end - begIdx;
-    if (dataLen <= 0) return;
+  static ucba(buf: Uint8Array, addr: number, bytes: Uint8Array | number[], start = 0, end?: number): void { bufUtil.ucba(buf, addr, bytes, start, end); }
+  static rcba(buf: Uint8Array, saddr: number, eaddr: number): Uint8Array { return bufUtil.rcba(buf, saddr, eaddr); }
+  
+  addressBytes(addr: number): Buffer { return bufUtil.addressBytes(this, addr); }
 
-    const arrLen = dst.length;
-    if (start >= arrLen) {
-      throw new TnzError('ucba: start too big');
-    }
-
-    const len1 = Math.min(arrLen - start, dataLen);
-    const len2 = dataLen - len1;
-
-    for (let i = 0; i < len1; i++) {
-      dst[start + i] = src[begIdx + i];
-    }
-    if (len2 > 0) {
-      for (let i = 0; i < len2; i++) {
-        dst[i] = src[begIdx + len1 + i];
-      }
-    }
-  }
-
-  /**
-   * Read from circular byte array.
-   *
-   * Reference: Python TNZ tnz.py lines 4726-4748
-   */
-  static rcba(value: Uint8Array, start: number, stop: number): Buffer {
-    if (start < stop) {
-      return Buffer.from(value.subarray(start, stop));
-    }
-    // Wrap around
-    return Buffer.concat([
-      Buffer.from(value.subarray(start)),
-      Buffer.from(value.subarray(0, stop)),
-    ]);
-  }
-
-  /**
-   * Validate a buffer address.
-   *
-   * Reference: Python TNZ tnz.py line 3717
-   */
-  private _checkAddress(addr: number): void {
-    if (addr < 0 || addr >= this.bufferSize) {
-      throw new TnzTerminalError(`Invalid address: ${addr}`);
-    }
-  }
-
-  /**
-   * Zero out planes for a range (assumes no field attributes in range).
-   *
-   * Reference: Python TNZ tnz.py lines 3791-3806
-   */
-  private _erase(saddr: number, eaddr: number): void {
-    let size = eaddr - saddr;
-    if (size <= 0) size += this.bufferSize;
-
-    const zeros = new Uint8Array(size);
-    const ucba = Tnz.ucba;
-    ucba(this.planeDc, saddr, zeros);
-    ucba(this.planeEh, saddr, zeros);
-    ucba(this.planeCs, saddr, zeros);
-    ucba(this.planeFg, saddr, zeros);
-    ucba(this.planeBg, saddr, zeros);
-  }
-
-  /**
-   * Erase unprotected field contents in address range.
-   *
-   * Reference: Python TNZ tnz.py lines 3808-3828
-   */
-  private _eraseInput(saddr: number, eaddr: number): void {
-    for (const [sa1] of this._charAddrs(saddr, eaddr)) {
-      let fav: number;
-      if (sa1 !== saddr) {
-        const faddr = (sa1 - 1 + this.bufferSize) % this.bufferSize;
-        fav = this.planeFa[faddr];
-      } else {
-        [, fav] = this._field(sa1);
-      }
-
-      if (fav & 0x20) continue; // protected field — skip
-
-      this._erase(sa1, eaddr);
-      this.updated = true;
-    }
-  }
-
-  /**
-   * Find the field attribute that governs `addr`.
-   * Returns [fieldAddr, fieldAttrValue].
-   *
-   * Scans backwards from addr to find the nearest FA byte.
-   * If no field is found, returns [-1, 0].
-   *
-   * Reference: Python TNZ tnz.py field() method
-   */
-  _field(addr: number): [number, number] {
-    const planeFa = this.planeFa;
-    const bufSize = this.bufferSize;
-
-    // Check if addr itself is a field attribute
-    if (planeFa[addr]) {
-      return [addr, planeFa[addr]];
-    }
-
-    // Scan backwards
-    let pos = (addr - 1 + bufSize) % bufSize;
-    while (pos !== addr) {
-      if (planeFa[pos]) {
-        return [pos, planeFa[pos]];
-      }
-      pos = (pos - 1 + bufSize) % bufSize;
-    }
-
-    return [-1, 0];
-  }
-
-  /**
-   * Find the next field attribute at or after `addr`.
-   * Returns [fieldAddr, fieldAttrValue], or [-1, 0] if none.
-   *
-   * Reference: Python TNZ tnz.py next_field()
-   */
-  nextField(addr: number, _eaddr?: number): [number, number] {
-    const planeFa = this.planeFa;
-    const bufSize = this.bufferSize;
-
-    let pos = addr;
-    for (let i = 0; i < bufSize; i++) {
-      if (planeFa[pos]) {
-        return [pos, planeFa[pos]];
-      }
-      pos = (pos + 1) % bufSize;
-    }
-
-    return [-1, 0];
-  }
-
-  /**
-   * Iterate character address ranges between field attributes.
-   * Yields [startAddr, endAddr] for each contiguous character range.
-   *
-   * Reference: Python TNZ tnz.py char_addrs()
-   */
-  private *_charAddrs(
-    saddr: number,
-    eaddr: number,
-  ): Generator<[number, number]> {
-    const planeFa = this.planeFa;
-    const bufSize = this.bufferSize;
-
-    if (saddr === eaddr) {
-      // Full buffer scan
-      let pos = saddr;
-      let rangeStart = -1;
-      for (let i = 0; i < bufSize; i++) {
-        if (planeFa[pos]) {
-          if (rangeStart >= 0) {
-            yield [rangeStart, pos];
-            rangeStart = -1;
-          }
-        } else {
-          if (rangeStart < 0) rangeStart = pos;
-        }
-        pos = (pos + 1) % bufSize;
-      }
-      if (rangeStart >= 0) {
-        yield [rangeStart, saddr];
-      }
-      return;
-    }
-
-    let pos = saddr;
-    let rangeStart = -1;
-    while (pos !== eaddr) {
-      if (planeFa[pos]) {
-        if (rangeStart >= 0) {
-          yield [rangeStart, pos];
-          rangeStart = -1;
-        }
-      } else {
-        if (rangeStart < 0) rangeStart = pos;
-      }
-      pos = (pos + 1) % bufSize;
-    }
-    if (rangeStart >= 0) {
-      yield [rangeStart, eaddr];
-    }
-  }
-
-  /**
-   * Check if a field attribute indicates a protected field.
-   */
-  isProtectedAttr(fattr: number): boolean {
-    return (fattr & 0x20) !== 0;
-  }
-
-  /**
-   * Iterate over all field attributes in the buffer.
-   * Yields [fieldAddr, fieldAttrValue].
-   *
-   * Reference: Python TNZ tnz.py fields()
-   */
-  *fields(): Generator<[number, number]> {
-    const planeFa = this.planeFa;
-    for (let i = 0; i < this.bufferSize; i++) {
-      if (planeFa[i]) {
-        yield [i, planeFa[i]];
-      }
-    }
-  }
-
-  /**
-   * Tab to the next unprotected field.
-   *
-   * Reference: Python TNZ tnz.py lines 4567-4585
-   */
-  private _tab(saddr: number, _eaddr = 0): number {
-    const planeFa = this.planeFa;
-    const bufSize = this.bufferSize;
-
-    let pos = saddr;
-    if (!planeFa[pos]) {
-      // On a character — find next field first
-      const [faddr] = this.nextField(pos);
-      if (faddr < 0) return 0;
-      pos = faddr;
-    }
-
-    // Move past the field attribute
-    pos = (pos + 1) % bufSize;
-
-    // Look for next unprotected field
-    let checked = 0;
-    while (checked < bufSize) {
-      if (planeFa[pos]) {
-        if (!this.isProtectedAttr(planeFa[pos])) {
-          return (pos + 1) % bufSize;
-        }
-      }
-      pos = (pos + 1) % bufSize;
-      checked++;
-    }
-
-    return 0;
-  }
+  /** @internal */ _checkAddress(address: number): void { bufUtil._checkAddress(this, address); }
+  /** @internal */ _erase(saddr: number, eaddr: number): void { bufUtil._erase(this, saddr, eaddr); }
+  /** @internal */ _eraseInput(saddr: number, eaddr: number): void { bufUtil._eraseInput(this, saddr, eaddr); }
+  /** @internal */ _field(address: number): [number, number] { return bufUtil._field(this, address); }
+  nextField(address: number): [number, number] { return bufUtil.nextField(this, address); }
+  _charAddrs(saddr: number, eaddr: number): Generator<number> { return bufUtil._charAddrs(this, saddr, eaddr); }
+  fields(saddr?: number, eaddr?: number): Generator<[number, number]> { return bufUtil.fields(this, saddr, eaddr); }
+  /** @internal */ _tab(saddr: number, _eaddr = 0): number { return bufUtil._tab(this, saddr, _eaddr); }
 
   // =========================================================================
   // State reset helpers
@@ -1623,7 +1362,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 3624-3632
    */
-  private _resetMdt(): void {
+  /** @internal */ _resetMdt(): void {
     const planeFa = this.planeFa;
     for (let i = 0; i < this.bufferSize; i++) {
       const fattr = planeFa[i];
@@ -1641,7 +1380,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 3634-3638
    */
-  private _resetPartition(): void {
+  /** @internal */ _resetPartition(): void {
     this._replyMode = 0; // Field mode
     this._replyCattrs = Buffer.alloc(0);
   }
@@ -1651,7 +1390,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 3640-3653
    */
-  private _restoreKeyboard(): void {
+  /** @internal */ _restoreKeyboard(): void {
     this.aid = AID.NONE;
     this.readState = ReadState.NORMAL;
     this.systemLockWait = false;
@@ -2123,7 +1862,7 @@ export class Tnz extends EventEmitter {
   private _processEau(): void {
     this._eraseInput(0, 0);
     this._resetMdt();
-    this._keyHome();
+    this.keyHome();
     this._restoreKeyboard();
   }
 
@@ -2194,7 +1933,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 4331-4434
    */
-  private _readBuffer(): void {
+  /** @internal */ _readBuffer(): void {
     const baddr = this.addressBytes(this.curadd);
     const parts: Buffer[] = [Buffer.from([this.aid, baddr[0], baddr[1]])];
 
@@ -2288,7 +2027,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 3693-3715
    */
-  private _appendCharBytes(
+  /** @internal */ _appendCharBytes(
     parts: Buffer[],
     saddr: number,
     eaddr: number,
@@ -2691,830 +2430,74 @@ export class Tnz extends EventEmitter {
   }
 
   // =========================================================================
-  // Screen reading helpers
+  // Keyboard methods (Delegated)
   // =========================================================================
 
-  /**
-   * Translate EBCDIC data-character bytes to printable equivalents
-   * before decoding. Maps control codes (NULL, FF, CR, NL, EM, EO)
-   * to EBCDIC space (0x40) so they decode as ' '.
-   *
-   * Reference: Python TNZ tnz.py __trans_dc_to_c
-   */
-  private static _translateDcToC(buf: Buffer): Buffer {
-    const out = Buffer.allocUnsafe(buf.length);
-    for (let i = 0; i < buf.length; i++) {
-      const b = buf[i];
-      // NULL=0x00, FF=0x0C, CR=0x0D, NL=0x15, EM=0x19, EO=0xFF
-      if (
-        b === 0x00 ||
-        b === 0x0c ||
-        b === 0x0d ||
-        b === 0x15 ||
-        b === 0x19 ||
-        b === 0xff
-      ) {
-        out[i] = 0x40; // EBCDIC space
-      } else {
-        out[i] = b;
-      }
-    }
-    return out;
-  }
-
-  /**
-   * Translate special Unicode code points after decoding:
-   * - U+001A (SUB) → U+2218 (ring operator / solid circle)
-   * - U+001C (DUP) → U+2611 (ballot box with check)
-   * - U+001E (FM)  → U+2612 (ballot box with X)
-   *
-   * Reference: Python TNZ tnz.py __trans_ords
-   */
-  private static _translateOrds(str: string): string {
-    let result = '';
-    for (const ch of str) {
-      const cp = ch.codePointAt(0)!;
-      if (cp === 0x1a) {
-        result += '\u2218'; // solid circle
-      } else if (cp === 0x1c) {
-        result += '\u2611'; // check mark
-      } else if (cp === 0x1e) {
-        result += '\u2612'; // x mark
-      } else {
-        result += ch;
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Iterate through segments of same character-set index value
-   * in the planeCs array, yielding the end address for each segment.
-   *
-   * Reference: Python TNZ tnz.py __iterbs_addr()
-   */
-  private *_iterCsAddr(
-    saddr: number,
-    eaddr: number,
-  ): Generator<number> {
-    const planeCs = this.planeCs;
-    const bufSize = this.bufferSize;
-
-    if (saddr === eaddr) {
-      // Full buffer scan
-      let pos = saddr;
-      let curVal = planeCs[pos];
-      for (let i = 1; i < bufSize; i++) {
-        pos = (pos + 1) % bufSize;
-        if (planeCs[pos] !== curVal) {
-          yield pos;
-          curVal = planeCs[pos];
-        }
-      }
-      yield eaddr;
-      return;
-    }
-
-    // Partial range
-    let len: number;
-    if (eaddr > saddr) {
-      len = eaddr - saddr;
-    } else {
-      len = bufSize - saddr + eaddr;
-    }
-
-    let pos = saddr;
-    let curVal = planeCs[pos];
-    for (let i = 1; i < len; i++) {
-      pos = (pos + 1) % bufSize;
-      if (planeCs[pos] !== curVal) {
-        yield pos;
-        curVal = planeCs[pos];
-      }
-    }
-    yield eaddr;
-  }
-
-  /**
-   * Read screen text from buffer as a Unicode string.
-   *
-   * Handles character set switching (primary vs GE/APL codecs),
-   * translates EBCDIC control characters to spaces, and optionally
-   * right-strips each row and joins with newlines.
-   *
-   * @param saddr - Start address (default 0)
-   * @param eaddr - End address (default = saddr → full buffer)
-   * @param rstrip - Strip trailing spaces per row; defaults to true
-   *   for full-buffer reads (saddr===0 && eaddr===0)
-   * @returns Decoded string
-   *
-   * Reference: Python TNZ tnz.py scrstr()
-   */
-  scrstr(saddr = 0, eaddr = 0, rstrip?: boolean): string {
-    if (rstrip === undefined) {
-      rstrip = saddr === 0 && eaddr === 0;
-    }
-
-    const rcba = Tnz.rcba;
-    const planeDc = this.planeDc;
-    const planeCs = this.planeCs;
-    const translateDc = Tnz._translateDcToC;
-
-    const parts: string[] = [];
-    let addr0 = saddr;
-    for (const addr1 of this._iterCsAddr(saddr, eaddr)) {
-      const raw = rcba(planeDc, addr0, addr1);
-      const translated = translateDc(Buffer.from(raw));
-      const csIdx = planeCs[addr0];
-
-      // Decode with the appropriate codec
-      if (csIdx === 0xf1 && this._codecF1) {
-        parts.push(this._codecF1.decode(translated));
-      } else {
-        parts.push(this._codec.decode(translated));
-      }
-      addr0 = addr1;
-    }
-
-    let str = Tnz._translateOrds(parts.join(''));
-
-    if (!rstrip) {
-      return str;
-    }
-
-    // Right-strip each row and join with newlines
-    const maxCol = this.maxCol;
-    const rows: string[] = [];
-    for (let i = 0; i < this.bufferSize; i += maxCol) {
-      const end = Math.min(i + maxCol, str.length);
-      rows.push(str.slice(i, end).trimEnd());
-    }
-    rows.push(''); // trailing newline like Python
-    return rows.join('\n');
-  }
-
-  /**
-   * Check if the screen contains a string at or after `saddr`.
-   *
-   * @param text - Text to search for
-   * @param saddr - Start address (default 0)
-   * @returns true if found
-   *
-   * Reference: Python TNZ tnz.py (implied by Ati usage)
-   */
-  scrhas(text: string, saddr = 0): boolean {
-    const fullText = this.scrstr(saddr, saddr, false);
-    return fullText.includes(text);
-  }
-
-  // =========================================================================
-  // Keyboard methods
-  // =========================================================================
-
-  /**
-   * Move cursor to home position (first unprotected field).
-   * If position 0 is protected, tabs to first unprotected field.
-   *
-   * Reference: Python TNZ tnz.py key_home()
-   */
-  private _keyHome(): void {
-    const pos = this._tab(0, 0);
-    this.curadd = pos;
-  }
-
-  /**
-   * Process home key (public).
-   *
-   * Reference: Python TNZ tnz.py key_home()
-   */
-  keyHome(): void {
-    if (this.isProtected(0)) {
-      this.curadd = this._tab(0);
-    } else {
-      this.curadd = 0;
-    }
-  }
-
-  /**
-   * Check if a buffer address is protected.
-   * Returns true if the address IS a field attribute or the field is protected.
-   *
-   * Reference: Python TNZ tnz.py is_protected()
-   */
-  isProtected(address: number): boolean {
-    const [fa1, fattr] = this._field(address);
-    return fa1 === address || (fattr & 0x20) !== 0;
-  }
-
-  /**
-   * Check if all fields are unprotected.
-   *
-   * Reference: Python TNZ tnz.py is_unprotected()
-   */
-  isUnprotected(): boolean {
-    for (const [, fattr] of this.fields()) {
-      if (this.isProtectedAttr(fattr)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Process an AID key (Enter, PF, PA, Clear, etc.).
-   * Sets system lock and pwait, then transmits the AID inbound.
-   *
-   * Reference: Python TNZ tnz.py key_aid()
-   */
-  keyAid(aid: number): void {
-    if (this.pwait) {
-      throw new TnzError('PWAIT Input Inhibit');
-    }
-    if (this.systemLockWait) {
-      throw new TnzError('System Lock Input Inhibit');
-    }
-    if (this.readState === ReadState.RENTER) {
-      throw new TnzError('Retry Enter State');
-    }
-
-    this.inpid = 0;
-    this.inop = 0x06; // Read Modified
-
-    if (aid !== 0x7f) { // not trigger action (AID_TRIGA)
-      this.systemLockWait = true;
-      this.pwait = true;
-    }
-
-    this.readState = ReadState.RENTER;
-    this.sendAid(aid);
-  }
-
-  /**
-   * Send ENTER AID. Optionally type text first.
-   *
-   * Reference: Python TNZ tnz.py enter()
-   */
-  enter(text?: string): void {
-    if (text) {
-      this.keyData(text);
-    }
-    this.keyAid(AID.ENTER);
-  }
-
-  /** Send PF1. */
+  keyHome(): void { kb.keyHome(this); }
+  isProtected(address: number): boolean { return kb.isProtected(this, address); }
+  isProtectedAttr(fattr: number): boolean { return kb.isProtectedAttr(fattr); }
+  isUnprotected(): boolean { return kb.isUnprotected(this); }
+  keyAid(aid: number): void { kb.keyAid(this, aid); }
+  enter(text?: string): void { kb.enter(this, text); }
+  
   pf1(): void { this.keyAid(AID.PF1); }
-  /** Send PF2. */
   pf2(): void { this.keyAid(AID.PF2); }
-  /** Send PF3. */
   pf3(): void { this.keyAid(AID.PF3); }
-  /** Send PF4. */
   pf4(): void { this.keyAid(AID.PF4); }
-  /** Send PF5. */
   pf5(): void { this.keyAid(AID.PF5); }
-  /** Send PF6. */
   pf6(): void { this.keyAid(AID.PF6); }
-  /** Send PF7. */
   pf7(): void { this.keyAid(AID.PF7); }
-  /** Send PF8. */
   pf8(): void { this.keyAid(AID.PF8); }
-  /** Send PF9. */
   pf9(): void { this.keyAid(AID.PF9); }
-  /** Send PF10. */
   pf10(): void { this.keyAid(AID.PF10); }
-  /** Send PF11. */
   pf11(): void { this.keyAid(AID.PF11); }
-  /** Send PF12. */
   pf12(): void { this.keyAid(AID.PF12); }
-  /** Send PF13. */
   pf13(): void { this.keyAid(AID.PF13); }
-  /** Send PF14. */
   pf14(): void { this.keyAid(AID.PF14); }
-  /** Send PF15. */
   pf15(): void { this.keyAid(AID.PF15); }
-  /** Send PF16. */
   pf16(): void { this.keyAid(AID.PF16); }
-  /** Send PF17. */
   pf17(): void { this.keyAid(AID.PF17); }
-  /** Send PF18. */
   pf18(): void { this.keyAid(AID.PF18); }
-  /** Send PF19. */
   pf19(): void { this.keyAid(AID.PF19); }
-  /** Send PF20. */
   pf20(): void { this.keyAid(AID.PF20); }
-  /** Send PF21. */
   pf21(): void { this.keyAid(AID.PF21); }
-  /** Send PF22. */
   pf22(): void { this.keyAid(AID.PF22); }
-  /** Send PF23. */
   pf23(): void { this.keyAid(AID.PF23); }
-  /** Send PF24. */
   pf24(): void { this.keyAid(AID.PF24); }
 
-  /** Send PA1. */
   pa1(): void { this.keyAid(AID.PA1); }
-  /** Send PA2. */
   pa2(): void { this.keyAid(AID.PA2); }
-  /** Send PA3. */
   pa3(): void { this.keyAid(AID.PA3); }
-
-  /** Send CLEAR. */
   clear(): void { this.keyAid(AID.CLEAR); }
 
-  // -- Cursor movement --
+  keyCurDown(): void { kb.keyCurDown(this); }
+  keyCurUp(): void { kb.keyCurUp(this); }
+  keyCurLeft(): void { kb.keyCurLeft(this); }
+  keyCurRight(): void { kb.keyCurRight(this); }
+  setCursorPosition(row: number, col: number): void { kb.setCursorPosition(this, row, col); }
+  setDataAt(text: string, row?: number, col?: number): number { return kb.setDataAt(this, text, row, col); }
 
-  /**
-   * Process cursor down key.
-   *
-   * Reference: Python TNZ tnz.py key_curdown()
-   */
-  keyCurDown(): void {
-    this.curadd = (this.curadd + this.maxCol) % this.bufferSize;
+  keyTab(): void { kb.keyTab(this); }
+  keyBacktab(): void { kb.keyBacktab(this); }
+  keyNewline(): void { kb.keyNewline(this); }
+  keyEnd(): void { kb.keyEnd(this); }
+  keyData(text: string): number { return kb.keyData(this, text); }
+  keyInsData(text: string): number { return kb.keyInsData(this, text); }
+  keyDelete(): boolean { return kb.keyDelete(this); }
+  keyBackspace(): boolean { return kb.keyBackspace(this); }
+  keyEraseEof(): boolean { return kb.keyEraseEof(this); }
+  keyEraseInput(): void { kb.keyEraseInput(this); }
+  attn(): void { kb.attn(this); }
+
+  // =========================================================================
+  // Screen reading helpers (Delegated)
+  // =========================================================================
+
+  scrstr(saddr = 0, eaddr = 0, rstrip?: boolean): string {
+    return screen.scrstr(this, saddr, eaddr, rstrip);
   }
 
-  /**
-   * Process cursor up key.
-   *
-   * Reference: Python TNZ tnz.py key_curup()
-   */
-  keyCurUp(): void {
-    this.curadd =
-      (this.curadd - this.maxCol + this.bufferSize) % this.bufferSize;
-  }
-
-  /**
-   * Process cursor left key.
-   *
-   * Reference: Python TNZ tnz.py key_curleft()
-   */
-  keyCurLeft(): void {
-    this.curadd =
-      (this.curadd - 1 + this.bufferSize) % this.bufferSize;
-  }
-
-  /**
-   * Process cursor right key.
-   *
-   * Reference: Python TNZ tnz.py key_curright()
-   */
-  keyCurRight(): void {
-    this.curadd = (this.curadd + 1) % this.bufferSize;
-  }
-
-  /**
-   * Set the cursor address from row and column (1-based).
-   *
-   * Reference: Python TNZ tnz.py set_cursor_position()
-   */
-  setCursorPosition(row: number, col: number): void {
-    if (row < 1 || row > this.maxRow) {
-      throw new RangeError(
-        `${row} not in range 1-${this.maxRow}`,
-      );
-    }
-    if (col < 1 || col > this.maxCol) {
-      throw new RangeError(
-        `${col} not in range 1-${this.maxCol}`,
-      );
-    }
-    this.curadd = (row - 1) * this.maxCol + (col - 1);
-  }
-
-  /**
-   * Helper to write text starting at a specific row/col position.
-   * If row/col are not provided, uses current cursor position.
-   * 
-   * @param text - The text to type
-   * @param row - Optional 1-based row
-   * @param col - Optional 1-based column
-   * @returns The number of characters successfully typed
-   */
-  setDataAt(text: string, row?: number, col?: number): number {
-    if (row !== undefined && col !== undefined) {
-      this.setCursorPosition(row, col);
-    }
-    return this.keyData(text);
-  }
-
-  // -- Field navigation --
-
-  /**
-   * Process tab key — move cursor to start of next unprotected field.
-   *
-   * Reference: Python TNZ tnz.py key_tab()
-   */
-  keyTab(): void {
-    this.curadd = this._tab(this.curadd);
-  }
-
-  /**
-   * Process backtab key — move cursor to start of previous
-   * unprotected field.
-   *
-   * Reference: Python TNZ tnz.py key_backtab()
-   */
-  keyBacktab(): void {
-    let addr = this.curadd;
-    let [faddr, fav] = this._field(addr);
-    if (faddr < 0) {
-      this.curadd = 0;
-      return;
-    }
-
-    const bufferSize = this.bufferSize;
-    const addrM1 = (addr - 1 + bufferSize) % bufferSize;
-    if (faddr === addr || faddr === addrM1) {
-      addr = (faddr - 1 + bufferSize) % bufferSize;
-      [faddr, fav] = this._field(addr);
-    }
-
-    const fa1 = faddr;
-    const planeFa = this.planeFa;
-    while (true) {
-      if (!(fav & 0x20)) { // if unprotected
-        addr = (faddr + 1) % bufferSize;
-        const fav2 = planeFa[addr];
-        if (fav2 === 0) {
-          this.curadd = addr;
-          return;
-        }
-      }
-
-      faddr = (faddr - 1 + bufferSize) % bufferSize;
-      [faddr, fav] = this._field(faddr);
-      if (faddr === fa1) {
-        this.curadd = 0;
-        return;
-      }
-    }
-  }
-
-  /**
-   * Process newline key — move to start of next line's
-   * first unprotected field.
-   *
-   * Reference: Python TNZ tnz.py key_newline()
-   */
-  keyNewline(): void {
-    const addr0 = this.curadd;
-    const line = Math.floor(addr0 / this.maxCol);
-    const addr1 = (line + 1) * this.maxCol;
-    const bufferSize = this.bufferSize;
-    if (this._field(0)[0] === -1) {
-      // no fields
-      this.curadd = addr1 % bufferSize;
-    } else {
-      const lastCol = (addr1 - 1 + bufferSize) % bufferSize;
-      this.curadd = lastCol;
-      this.keyTab();
-    }
-  }
-
-  /**
-   * Process End key — go to end of text in current field.
-   *
-   * Cursor moves onto a null/blank position after the last
-   * non-null character in the field. For unprotected fields,
-   * stays on the last character if field is full.
-   *
-   * Reference: Python TNZ tnz.py key_end()
-   */
-  keyEnd(): void {
-    const caddr = this.curadd;
-    const [faddr, fattr] = this._field(caddr);
-    if (faddr === -1) return; // no fields
-
-    const bufferSize = this.bufferSize;
-    const faddr1 = (faddr + 1) % bufferSize;
-    const [eaddr] = this.nextField(caddr);
-    if (faddr1 === eaddr) return; // 0-length field
-
-    const fieldDc = Tnz.rcba(this.planeDc, faddr1, eaddr);
-    let offset: number;
-    if (fieldDc[fieldDc.length - 1] === 0x40) {
-      // Last byte is a blank — strip nulls and blanks
-      let i = fieldDc.length;
-      while (i > 0 && (fieldDc[i - 1] === 0 || fieldDc[i - 1] === 0x40)) {
-        i--;
-      }
-      offset = i;
-    } else {
-      // Strip trailing nulls only
-      let i = fieldDc.length;
-      while (i > 0 && fieldDc[i - 1] === 0) {
-        i--;
-      }
-      offset = i;
-    }
-
-    let newAddr = (faddr1 + offset) % bufferSize;
-    if (newAddr === eaddr && !this.isProtectedAttr(fattr)) {
-      newAddr = (newAddr - 1 + bufferSize) % bufferSize;
-    }
-
-    this.curadd = newAddr;
-  }
-
-  // -- Data entry --
-
-  /**
-   * Process keyboard character data — encode and write into
-   * the current unprotected field.
-   *
-   * Returns the number of characters consumed from the input.
-   *
-   * Reference: Python TNZ tnz.py key_data()
-   */
-  keyData(text: string): number {
-    const encoded = this._codec.encode(text);
-    return this._keyBytes(encoded, 0, false);
-  }
-
-  /**
-   * Write encoded EBCDIC bytes into the buffer at the cursor.
-   *
-   * Reference: Python TNZ tnz.py __key_bytes()
-   */
-  private _keyBytes(
-    data: Uint8Array,
-    codecIndex: number,
-    onerow: boolean,
-  ): number {
-    if (this.pwait) {
-      throw new TnzError('PWAIT Input Inhibit');
-    }
-    if (this.systemLockWait) {
-      throw new TnzError('System Lock Input Inhibit');
-    }
-
-    const bufferSize = this.bufferSize;
-
-    let cax: number;
-    if (onerow) {
-      let row = Math.floor(this.curadd / this.maxCol);
-      row += 1;
-      cax = (row * this.maxCol) % bufferSize;
-    } else {
-      cax = this.curadd;
-    }
-
-    let charsKeyed = 0;
-    let remaining = data;
-
-    while (remaining.length > 0) {
-      const ca1 = this.curadd;
-      if (this.planeFa[ca1]) {
-        return charsKeyed; // on field attribute
-      }
-
-      const dataLen = remaining.length;
-      const [fa1, fattr] = this._field(ca1);
-      if (fattr & 0x20) {
-        return charsKeyed; // protected field
-      }
-
-      let [fa2] = this.nextField(ca1);
-      if (fa2 < 0) {
-        fa2 = cax;
-      }
-
-      let fieldLen: number;
-      if (ca1 < fa2) {
-        fieldLen = fa2 - ca1;
-      } else {
-        fieldLen = bufferSize + fa2 - ca1;
-      }
-
-      const usedLen = Math.min(fieldLen, dataLen);
-      const slice = remaining.slice(0, usedLen);
-      const zeros = new Uint8Array(usedLen);
-      const csBytes = new Uint8Array(usedLen).fill(codecIndex);
-
-      Tnz.ucba(this.planeDc, ca1, slice);
-      Tnz.ucba(this.planeEh, ca1, zeros);
-      Tnz.ucba(this.planeCs, ca1, csBytes);
-      Tnz.ucba(this.planeFg, ca1, zeros);
-      Tnz.ucba(this.planeBg, ca1, zeros);
-
-      // Set MDT
-      if (fa1 >= 0) {
-        this.planeFa[fa1] = bit6(fattr | 1);
-      }
-
-      this.curadd = (this.curadd + usedLen) % bufferSize;
-
-      charsKeyed += usedLen;
-      remaining = remaining.slice(usedLen);
-
-      if (this.curadd === cax) {
-        return charsKeyed;
-      }
-
-      const nextFattr = this.planeFa[this.curadd];
-      if (nextFattr) { // on field attribute
-        if (!(nextFattr & 0x10)) { // alphanumeric field
-          this.curadd = (this.curadd + 1) % bufferSize;
-        } else {
-          this.keyTab();
-        }
-      }
-    }
-
-    return charsKeyed;
-  }
-
-  /**
-   * Process keyboard character data in insert mode.
-   * Shifts existing data right to make room for the new text.
-   *
-   * Returns the number of characters inserted.
-   *
-   * Reference: Python TNZ tnz.py key_ins_data()
-   */
-  keyInsData(text: string): number {
-    if (this.pwait) {
-      throw new TnzError('PWAIT Input Inhibit');
-    }
-    if (this.systemLockWait) {
-      throw new TnzError('System Lock Input Inhibit');
-    }
-
-    const addr0 = this.curadd;
-    const [faddr, fattr] = this._field(addr0);
-    if (faddr === addr0) return 0; // on field attribute
-    if (fattr & 0x20) return 0; // protected
-
-    const bufferSize = this.bufferSize;
-    const planeDc = this.planeDc;
-    const planeEh = this.planeEh;
-    const planeCs = this.planeCs;
-    const planeFg = this.planeFg;
-    const planeBg = this.planeBg;
-
-    let addr2: number;
-    let dataLen: number;
-    if (faddr < 0) {
-      addr2 = addr0;
-      dataLen = bufferSize;
-    } else {
-      [addr2] = this.nextField(addr0);
-      if (addr0 < addr2) {
-        dataLen = addr2 - addr0;
-      } else {
-        dataLen = bufferSize - addr0 + addr2;
-      }
-    }
-
-    let insertText = text;
-    if (dataLen < insertText.length) {
-      insertText = insertText.slice(0, dataLen);
-    }
-
-    // Count available null/blank positions at end of field
-    let insLen = 0;
-    let i = (addr2 - 1 + bufferSize) % bufferSize;
-    while (insLen < insertText.length) {
-      const dcByte = planeDc[i];
-      if (dcByte !== 0 && dcByte !== 0x40) break; // not null or space
-      insLen++;
-      i = (i - 1 + bufferSize) % bufferSize;
-    }
-
-    if (insLen <= 0) return 0;
-
-    insertText = insertText.slice(0, insLen);
-
-    // Copy existing data to the right
-    const addr1 = (addr0 + insLen) % bufferSize;
-    const addr3 = (i + 1) % bufferSize; // copy source end address
-    const ucba = Tnz.ucba;
-    const rcba = Tnz.rcba;
-    ucba(planeDc, addr1, rcba(planeDc, addr0, addr3));
-    ucba(planeEh, addr1, rcba(planeEh, addr0, addr3));
-    ucba(planeCs, addr1, rcba(planeCs, addr0, addr3));
-    ucba(planeFg, addr1, rcba(planeFg, addr0, addr3));
-    ucba(planeBg, addr1, rcba(planeBg, addr0, addr3));
-
-    this.keyData(insertText);
-    return insertText.length;
-  }
-
-  // -- Editing --
-
-  /**
-   * Process delete key — delete character at cursor,
-   * shift remaining field data left.
-   *
-   * Returns true if the delete was performed.
-   *
-   * Reference: Python TNZ tnz.py key_delete()
-   */
-  keyDelete(): boolean {
-    const addr0 = this.curadd;
-    const [faddr, fattr] = this._field(addr0);
-    if (faddr === addr0) return false; // on field attribute
-    if (fattr & 0x20) return false; // protected
-
-    const bufferSize = this.bufferSize;
-    let addr3: number;
-    if (faddr < 0) {
-      addr3 = addr0;
-    } else {
-      [addr3] = this.nextField(addr0);
-      this.planeFa[faddr] = bit6(fattr | 1); // Set MDT
-    }
-
-    const addr1 = (addr0 + 1) % bufferSize; // source for copy
-    const addr2 = (addr3 - 1 + bufferSize) % bufferSize; // last char
-
-    if (addr1 !== addr3) {
-      Tnz.ucba(this.planeDc, addr0,
-        Tnz.rcba(this.planeDc, addr1, addr3));
-      Tnz.ucba(this.planeEh, addr0,
-        Tnz.rcba(this.planeEh, addr1, addr3));
-      Tnz.ucba(this.planeCs, addr0,
-        Tnz.rcba(this.planeCs, addr1, addr3));
-      Tnz.ucba(this.planeFg, addr0,
-        Tnz.rcba(this.planeFg, addr1, addr3));
-      Tnz.ucba(this.planeBg, addr0,
-        Tnz.rcba(this.planeBg, addr1, addr3));
-    }
-
-    // Clear last position in field
-    this.planeDc[addr2] = 0;
-    this.planeEh[addr2] = 0;
-    this.planeCs[addr2] = 0;
-    this.planeFg[addr2] = 0;
-    this.planeBg[addr2] = 0;
-
-    return true;
-  }
-
-  /**
-   * Process backspace key — cursor left + delete, if allowed.
-   *
-   * Returns true if the backspace was performed.
-   *
-   * Reference: Python TNZ tnz.py key_backspace()
-   */
-  keyBackspace(): boolean {
-    const addr0 = this.curadd;
-    const [faddr, fattr] = this._field(addr0);
-    if (faddr === addr0) return false; // on field attribute
-    if (fattr & 0x20) return false; // protected
-
-    const addr1 = (addr0 - 1 + this.bufferSize) % this.bufferSize;
-    if (faddr === addr1) return false; // left is field attribute
-
-    this.curadd = addr1;
-    this.keyDelete();
-    return true;
-  }
-
-  /**
-   * Process erase-to-end-of-field key.
-   *
-   * Returns true if the erase was performed.
-   *
-   * Reference: Python TNZ tnz.py key_eraseeof()
-   */
-  keyEraseEof(): boolean {
-    const addr0 = this.curadd;
-    const [faddr, fattr] = this._field(addr0);
-    if (faddr === addr0) return false; // on field attribute
-    if (fattr & 0x20) return false; // protected
-
-    let addr2: number;
-    if (faddr < 0) {
-      addr2 = addr0;
-    } else {
-      [addr2] = this.nextField(addr0);
-      this.planeFa[faddr] = bit6(fattr | 1); // Set MDT
-    }
-
-    this._erase(addr0, addr2);
-    return true;
-  }
-
-  /**
-   * Process ERASE INPUT key — erase all unprotected fields,
-   * reset MDT, home cursor.
-   *
-   * Reference: Python TNZ tnz.py key_eraseinput()
-   */
-  keyEraseInput(): void {
-    this._eraseInput(0, 0);
-    this._resetMdt();
-    this.keyHome();
-  }
-
-  // -- ATTN --
-
-  /** Send ATTN key. */
-  attn(): void {
-    if (this._tn3270e) {
-      this.sendCommand(244); // IP (Interrupt Process)
-    } else {
-      this.sendCommand(243); // BRK (Break)
-    }
+  scrhas(text: string, saddr = 0): boolean {
+    return screen.scrhas(this, text, saddr);
   }
 }
