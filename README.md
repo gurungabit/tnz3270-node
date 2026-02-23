@@ -17,11 +17,11 @@ It includes a powerful automation layer (`Ati`) for headless scripting, screen s
 ## Installation
 
 ```bash
-npm install tnz-node
+npm install tnz3270-node
 # or
-yarn add tnz-node
+yarn add tnz3270-node
 # or
-bun install tnz-node
+bun install tnz3270-node
 ```
 
 ## Quick Start
@@ -29,7 +29,7 @@ bun install tnz-node
 The easiest way to interact with the mainframe programmatically is through the `Ati` automation wrapper.
 
 ```typescript
-import { Ati } from 'tnz-node';
+import { Ati } from 'tnz3270-node';
 
 async function main() {
   const ati = new Ati();
