@@ -276,7 +276,7 @@ function App() {
 
           <div>
             <h3>Actions</h3>
-            <div className="macro-grid" style={{gridTemplateColumns: '1fr 1fr'}}>
+            <div className="macro-grid" style={{gridTemplateColumns: 'repeat(4, 1fr)'}}>
               <button onClick={() => sendKey('enter')} className="primary">Enter</button>
               <button onClick={() => sendKey('clear')}>Clear</button>
               <button onClick={() => sendKey('reset')}>Reset Lock</button>
@@ -286,7 +286,7 @@ function App() {
 
           <div>
             <h3>Program Function (PF)</h3>
-            <div className="macro-grid">
+            <div className="macro-grid" style={{gridTemplateColumns: 'repeat(6, 1fr)'}}>
               {Array.from({length: 24}).map((_, i) => (
                 <button key={i} onClick={() => sendKey(`pf${i+1}`)}>PF{i+1}</button>
               ))}
@@ -295,7 +295,7 @@ function App() {
 
           <div>
             <h3>Program Attention (PA)</h3>
-            <div className="macro-grid">
+            <div className="macro-grid" style={{gridTemplateColumns: 'repeat(3, 1fr)'}}>
               <button onClick={() => sendKey('pa1')}>PA1</button>
               <button onClick={() => sendKey('pa2')}>PA2</button>
               <button onClick={() => sendKey('pa3')}>PA3</button>
@@ -303,14 +303,14 @@ function App() {
           </div>
 
           <div>
-            <h3>Keyboard</h3>
-            <div className="kbd-hints">
+            <h3>Keyboard Shortcuts</h3>
+            <div className="kbd-hints" style={{flexDirection: 'row', flexWrap: 'wrap', gap: '10px 16px'}}>
               <span><kbd>Enter</kbd> Submit</span>
               <span><kbd>Esc</kbd> Clear</span>
               <span><kbd>Tab</kbd> Next Field</span>
-              <span><kbd>Shift+Tab</kbd> Prev Field</span>
-              <span><kbd>F1-F24</kbd> PF Keys</span>
-              <span><kbd>Ctrl+R</kbd> Reset Lock</span>
+              <span><kbd>S+Tab</kbd> Prev Field</span>
+              <span><kbd>F1-F12</kbd> PF Keys</span>
+              <span><kbd>^R</kbd> Reset Lock</span>
             </div>
           </div>
         </div>

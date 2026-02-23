@@ -31,10 +31,69 @@ body {
 header {
   background: var(--panel-bg);
   border-bottom: 1px solid var(--border-color);
-  padding: 12px 24px;
+  padding: 4px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 48px;
+}
+
+.sidebar {
+  width: 480px;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.kbd-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.kbd-hints span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: #000000;
+  /* subtle radial gradient to simulate CRT monitor glow */
+  background: radial-gradient(circle at top left, #0a0a0a 0%, #000000 100%);
+}
+
+.terminal-wrapper {
+  padding: 2px;
+  border: 1px solid #222;
+  background: #000;
+  box-shadow: 0 0 40px rgba(74, 246, 38, 0.05), inset 0 0 20px rgba(0,0,0,1);
+  border-radius: 2px;
+  line-height: 0;
+  width: fit-content;
+}
+
+.sidebar {
+  width: 480px;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
 }
 
 .logo {
