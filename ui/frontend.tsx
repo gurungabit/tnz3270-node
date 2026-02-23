@@ -74,14 +74,17 @@ function App() {
         } else if (msg.type === 'screen') {
           // We write the ansi directly to the terminal
           term.write(msg.data);
-        } else if (msg.type === 'status') {
-          setLocked(msg.locked);
-          stateRef.current.locked = msg.locked;
-          if (msg.rows) stateRef.current.rows = msg.rows;
-          if (msg.cols) stateRef.current.cols = msg.cols;
-          const cRow = Math.floor(msg.cursor / msg.cols) + 1;
-          const cCol = (msg.cursor % msg.cols) + 1;
-          setCursorPos({ row: cRow, col: cCol });
+      } else if (msg.type === 'status') {
+        setLocked(msg.locked);
+        stateRef.current.locked = msg.locked;
+        if (msg.rows) stateRef.current.rows = msg.rows;
+        if (msg.cols) stateRef.current.cols = msg.cols;
+        
+        const cols = msg.cols || stateRef.current.cols || 80;
+        const cursor = typeof msg.cursor === 'number' ? msg.cursor : 0;
+        const cRow = Math.floor(cursor / cols) + 1;
+        const cCol = (cursor % cols) + 1;
+        setCursorPos({ row: cRow, col: cCol });
         } else if (msg.type === 'error') {
           setErrorMsg(msg.message);
           setTimeout(() => setErrorMsg(null), 5000);
