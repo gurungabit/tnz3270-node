@@ -17,7 +17,11 @@ It includes a powerful automation layer (`Ati`) for headless scripting, screen s
 ## Installation
 
 ```bash
-bun install
+npm install tnz-node
+# or
+yarn add tnz-node
+# or
+bun install tnz-node
 ```
 
 ## Quick Start
@@ -92,16 +96,6 @@ bun run test-login.ts
 bun run test-stress.ts
 bun run test-concurrency.ts
 ```
-
-## Project Structure
-
-The codebase was refactored from a monolithic implementation into focused sub-modules under `src/core/`:
-- `parser.ts`: Binary 3270 Data Stream unwrapper and processor.
-- `buffer.ts`: Circular EBCDIC screen grid manipulations.
-- `keyboard.ts`: Key-to-AID event dispatching and cursor routing.
-- `screen.ts`: Screen scraping and text extraction logic.
-- `connection.ts`: Telnet TCP/TLS negotiation and transport streams.
-
 ## License
 
 MIT

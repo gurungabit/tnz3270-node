@@ -1,7 +1,18 @@
 {
   "name": "tnz-node",
   "version": "0.1.0",
-  "author": "gurungabit@gmail.com",
+  "author": "Abit Gurung <gurungabit@gmail.com>",
+  "keywords": [
+    "tn3270",
+    "3270",
+    "mainframe",
+    "terminal",
+    "emulator",
+    "automation",
+    "ibm",
+    "z/os",
+    "mvs"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "devDependencies": {
