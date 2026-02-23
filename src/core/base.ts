@@ -40,7 +40,6 @@ export enum ReadState {
  * Used for buffer address encoding where bits 0-1 are reserved.
  * See figure D-1 in 3270 Data Stream Programmers Reference.
  *
- * Reference: Python TNZ tnz.py line 4946
  */
 export function bit6(controlInt: number): number {
   controlInt &= 0x3f; // zero bits 0,1

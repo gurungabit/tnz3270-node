@@ -5,7 +5,6 @@
  * for sending keystrokes, waiting for screen conditions, and
  * extracting screen data.
  *
- * Reference: Python TNZ ati.py (3,738 lines)
  *
  * @module automation/ati
  */
@@ -193,7 +192,6 @@ const MOVE_KEYS: Record<string, string> = {
  * Provides session management, send/wait/when primitives, and
  * screen reading helpers (scrhas, extract).
  *
- * Reference: Python TNZ ati.py Ati class
  */
 export class Ati {
   // -- Session registry --
@@ -358,7 +356,6 @@ export class Ati {
   /**
    * Drop (disconnect) the current session.
    *
-   * Reference: Python TNZ ati.py __drop_session()
    */
   dropSession(): void {
     const session = this._currentSession;
@@ -383,7 +380,6 @@ export class Ati {
   /**
    * Rename the current session.
    *
-   * Reference: Python TNZ ati.py rename()
    */
   renameSession(newName: string): void {
     const unam = newName.toUpperCase().trim();
@@ -464,7 +460,6 @@ export class Ati {
    * @param caseInsensitive - Whether to search case-insensitively
    * @returns true if found
    *
-   * Reference: Python TNZ ati.py scrhas()
    */
   scrhas(text: string, caseInsensitive = false): boolean {
     const tns = this.getTnz();
@@ -503,7 +498,6 @@ export class Ati {
    * @param col - Start column (1-based, default 1)
    * @returns Extracted text
    *
-   * Reference: Python TNZ ati.py extract()
    */
   extract(
     length: number | typeof EOL,
@@ -584,7 +578,6 @@ export class Ati {
    * @param pos - Optional cursor position [row, col] (1-based)
    * @returns Return code (0=success, 4=partial, 12=session lost)
    *
-   * Reference: Python TNZ ati.py send()
    */
   async send(value: string, pos?: [number, number]): Promise<number> {
     const tns = this.getTnz();
@@ -755,7 +748,6 @@ export class Ati {
    * @param condition - Condition function (optional)
    * @returns 0=timeout, 1=condition met, 12=session lost
    *
-   * Reference: Python TNZ ati.py wait()
    */
   async wait(
     timeout?: number,
@@ -826,7 +818,6 @@ export class Ati {
    * @param action - Action to execute when condition is true
    * @param priority - Priority (lower = higher, default 1)
    *
-   * Reference: Python TNZ ati.py when()
    */
   whenOn(
     name: string,
@@ -917,7 +908,6 @@ export class Ati {
    * Get the value of a variable.
    * Returns the variable value, or the uppercased name if not set.
    *
-   * Reference: Python TNZ ati.py value()
    */
   value(name: string): string {
     const unam = name.toUpperCase().trim();
@@ -976,7 +966,6 @@ export class Ati {
    * @param name - Variable name
    * @param val - Value to set
    *
-   * Reference: Python TNZ ati.py set()
    */
   set(name: string, val: string | number | boolean): void {
     const unam = name.toUpperCase().trim();
@@ -1025,7 +1014,6 @@ export class Ati {
   /**
    * Drop (delete) a user variable.
    *
-   * Reference: Python TNZ ati.py drop()
    */
   drop(name: string): void {
     const unam = name.toUpperCase().trim();
@@ -1060,7 +1048,6 @@ export class Ati {
    * Parse a numeric value from a string (ATI-style).
    * Extracts leading digits, returns 0 for empty/non-numeric.
    *
-   * Reference: Python TNZ ati.py num()
    */
   static num(value: string | number): number {
     if (typeof value === 'number') return value;

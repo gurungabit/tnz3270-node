@@ -1,7 +1,6 @@
 /**
  * Core types, constants, and interfaces for TN3270 terminal emulation.
  *
- * Reference: Python TNZ tnz.py, _util.py
  *
  * @module types
  */

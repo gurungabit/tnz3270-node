@@ -4,7 +4,6 @@
  * Provides IAC sequence parsing, packet building, and IAC escaping/unescaping.
  * All functions are pure — no side effects, no state.
  *
- * Reference: Python TNZ tnz.py lines 2020-2344, 4906-4908
  * Reference: RFC 854 (Telnet), RFC 855 (Options), RFC 2355 (TN3270E)
  *
  * @module core/telnet
@@ -19,7 +18,6 @@ import { TELNET } from '../types';
 /**
  * Describes a single IAC command sequence found in a buffer.
  *
- * Python equivalent: match objects from `__pat_cmd.finditer(buff)`
  */
 export interface IacMatch {
   /** Byte offset where the IAC sequence starts */
@@ -35,7 +33,6 @@ export interface IacMatch {
 /**
  * Find all IAC command sequences in a buffer.
  *
- * Matches the Python regex: `b"\xff(?:[\x00-\xfa\xff]|..)"`
  * - IAC followed by a byte in 0x00-0xFA or 0xFF → 2-byte sequence
  * - IAC followed by WILL/WONT/DO/DONT (0xFB-0xFE) + option → 3-byte sequence
  *
@@ -84,7 +81,6 @@ export function findIacSequences(buf: Buffer): IacMatch[] {
  * Escape IAC bytes in data for transmission.
  * Replaces every 0xFF with 0xFF 0xFF.
  *
- * Python equivalent: `data.replace(b"\xff", b"\xff\xff")`
  */
 export function escapeIac(data: Buffer): Buffer {
   // Fast path: no IAC bytes
@@ -105,7 +101,6 @@ export function escapeIac(data: Buffer): Buffer {
  * - IAC IAC (0xFF 0xFF) → single 0xFF
  * - Other IAC sequences are removed (shouldn't appear in record data)
  *
- * Python equivalent: `__pat_cmd.sub(__repl, rec)`
  * where `__repl` returns b"\xff" for IAC IAC, b"" for everything else.
  */
 export function unescapeIac(data: Buffer): Buffer {
@@ -212,7 +207,6 @@ const OPTION_NAMES: Record<number, string> = {
 /**
  * Get a human-readable name for a telnet option code.
  *
- * Python equivalent: `__tnon(opt)` / `__tn_options`
  */
 export function optionName(opt: number): string {
   return OPTION_NAMES[opt] ?? `OPT(${opt})`;

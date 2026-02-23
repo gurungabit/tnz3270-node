@@ -1,7 +1,6 @@
 /**
  * tnz-node: TypeScript library for IBM mainframe TN3270 terminal automation.
  *
- * Port of the Python TNZ library (https://github.com/IBM/tnz).
  *
  * @module tnz-node
  */

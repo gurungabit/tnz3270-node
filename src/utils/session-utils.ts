@@ -1,7 +1,6 @@
 /**
  * Session utility functions.
  *
- * Port of Python TNZ _util.py.
  * Provides session presentation space size calculations.
  *
  * @module utils/session-utils
@@ -13,7 +12,6 @@ import type { ScreenSize } from '../types';
  * HOD-defined session presentation space sizes.
  * Maps numeric PS size IDs to [rows, cols] dimensions.
  *
- * Reference: Python TNZ _util.py lines 12-31
  */
 const SESSION_PS_SIZES: Record<string, ScreenSize> = {
   '2': { rows: 24, cols: 80 },
@@ -45,7 +43,6 @@ const SESSION_PS_SIZES: Record<string, ScreenSize> = {
  *
  * @throws {ValueError} if the value cannot be parsed
  *
- * Reference: Python TNZ _util.py:34-50
  */
 export function sessionPsSize(psSize: string | number): ScreenSize {
   const key = String(psSize);
@@ -74,7 +71,6 @@ export function sessionPsSize(psSize: string | number): ScreenSize {
  * dimensions to fit within that limit while maintaining minimum sizes
  * of 24 rows and 80 columns.
  *
- * Reference: Python TNZ _util.py:53-71
  */
 export function sessionPs14bit(maxH: number, maxW: number): ScreenSize {
   let rows = Math.max(maxH, 24);

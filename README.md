@@ -1,6 +1,6 @@
 # TNZ-Node
 
-TNZ-Node is a zero-dependency, highly performant TypeScript port of the Python TNZ library. It provides a complete TN3270 data stream parser, protocol negotiator, and screen buffer manager for interacting with IBM Mainframes (z/OS, MVS, TK4-).
+TNZ-Node is a zero-dependency, highly performant TypeScript library. It provides a complete TN3270 data stream parser, protocol negotiator, and screen buffer manager for interacting with IBM Mainframes (z/OS, MVS, TK4-).
 
 It includes a powerful automation layer (`Ati`) for headless scripting, screen scraping, and concurrent mainframe interactions, as well as native support for `IND$FILE` (DDM) file transfers.
 

@@ -5,7 +5,6 @@
  * Supports cp037 (US EBCDIC), cp1047 (z/OS Latin-1), and cp310 (APL).
  * Additional code pages can be registered at runtime.
  *
- * Reference: Python TNZ cp310.py, tnz.py encoding property
  *
  * @module utils/codepage
  */
@@ -64,7 +63,6 @@ const CP1047_TO_UNICODE: number[] = [
 
 // ---------------------------------------------------------------------------
 // CP310 - APL Graphic Symbols (3278T terminal)
-// Reference: Python TNZ cp310.py, https://en.wikipedia.org/wiki/Code_page_310
 // ---------------------------------------------------------------------------
 
 // prettier-ignore
@@ -153,7 +151,6 @@ function getTable(name: string): CodePageTable | undefined {
 
 /**
  * EBCDIC control bytes that should display as spaces.
- * Reference: Python TNZ tnz.py lines 4889-4891
  */
 const DC_TO_DISPLAY: ReadonlyMap<number, number> = new Map([
   [0x00, 0x40], // NULL -> space
@@ -166,7 +163,6 @@ const DC_TO_DISPLAY: ReadonlyMap<number, number> = new Map([
 
 /**
  * Special EBCDIC control characters with Unicode display representations.
- * Reference: Python TNZ tnz.py lines 4895-4897
  */
 const SPECIAL_DISPLAY_CHARS: ReadonlyMap<number, number> = new Map([
   [0x1a, 0x2218], // SUB -> solid circle

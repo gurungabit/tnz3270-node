@@ -4,7 +4,6 @@
  * Core class for telnet-3270 connection, protocol negotiation,
  * screen buffers, and keyboard input. One instance per terminal session.
  *
- * Reference: Python TNZ tnz.py (4,967 lines)
  *
  * @module core/tnz
  */
@@ -343,7 +342,6 @@ export class Tnz extends EventEmitter {
    * @param options - Connection options (secure, verifyCert)
    * @throws {TnzError} if already connected
    *
-   * Reference: Python TNZ tnz.py lines 371-451
    */
   async connect(
     host?: string,
@@ -423,7 +421,6 @@ export class Tnz extends EventEmitter {
    *
    * Called when the server sends IAC SB START_TLS FOLLOWS.
    *
-   * Reference: Python TNZ tnz.py lines 4518-4565
    */
   private async _startTls(): Promise<void> {
     const oldSocket = this._socket;
@@ -482,7 +479,6 @@ export class Tnz extends EventEmitter {
   /**
    * Close the connection immediately (abort).
    *
-   * Reference: Python TNZ tnz.py lines 363-369
    */
   close(): void {
     const socket = this._socket;
@@ -495,7 +491,6 @@ export class Tnz extends EventEmitter {
   /**
    * Shut down the connection gracefully.
    *
-   * Reference: Python TNZ tnz.py lines 1853-1858
    */
   shutdown(): void {
     this.close();
@@ -523,7 +518,6 @@ export class Tnz extends EventEmitter {
    * @returns true if session lost, false if timeout, null otherwise
    * @throws {TnzError} if already waiting
    *
-   * Reference: Python TNZ tnz.py lines 1922-1980
    */
   async wait(timeout?: number): Promise<boolean | null> {
     if (this.seslost) {
@@ -579,7 +573,6 @@ export class Tnz extends EventEmitter {
    * If data is provided, it is IAC-escaped and appended to the buffer.
    * Then all buffered data is written to the socket.
    *
-   * Reference: Python TNZ tnz.py lines 1560-1585
    */
   send(data?: Buffer): void {
     if (data && data.length > 0) {
@@ -602,7 +595,6 @@ export class Tnz extends EventEmitter {
    * Send a 3270-DATA record to the host.
    * Adds TN3270E header if in TN3270E mode, IAC-escapes, appends IAC EOR.
    *
-   * Reference: Python TNZ tnz.py lines 1587-1600
    */
   send3270Data(value: Buffer): void {
     const escaped = escapeIac(value);
@@ -619,7 +611,6 @@ export class Tnz extends EventEmitter {
    * Send a record to the host with IAC escaping and EOR.
    * (No TN3270E header — used for TN3270E RESPONSE records.)
    *
-   * Reference: Python TNZ tnz.py lines 1772-1781
    */
   sendRec(value: Buffer): void {
     const escaped = escapeIac(value);
@@ -631,7 +622,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send IAC WILL to the host.
    *
-   * Reference: Python TNZ tnz.py lines 1806-1817
    */
   sendWill(opt: number, buffer = false): void {
     this.localWill.add(opt);
@@ -644,7 +634,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send IAC WONT to the host.
    *
-   * Reference: Python TNZ tnz.py lines 1819-1830
    */
   sendWont(opt: number, buffer = false): void {
     this.localWont.add(opt);
@@ -657,7 +646,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send IAC DO to the host.
    *
-   * Reference: Python TNZ tnz.py lines 1734-1751
    */
   sendDo(opt: number, buffer = false): void {
     if (opt === TELNET.OPT_BINARY) {
@@ -676,7 +664,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send IAC DONT to the host.
    *
-   * Reference: Python TNZ tnz.py lines 1753-1770
    */
   sendDont(opt: number, buffer = false): void {
     if (opt === TELNET.OPT_BINARY) {
@@ -695,7 +682,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send subnegotiation data (bookended with IAC SB ... IAC SE).
    *
-   * Reference: Python TNZ tnz.py lines 1783-1794
    */
   sendSub(value: Buffer, buffer = false): void {
     const escaped = escapeIac(value);
@@ -708,7 +694,6 @@ export class Tnz extends EventEmitter {
   /**
    * Send the terminal type subnegotiation.
    *
-   * Reference: Python TNZ tnz.py lines 1796-1804
    */
   sendTerminalType(buffer = false): void {
     const data = Buffer.concat([
@@ -724,7 +709,6 @@ export class Tnz extends EventEmitter {
    * @param code - Command code (241-249)
    * @throws {TnzError} if code is not in valid range
    *
-   * Reference: Python TNZ tnz.py lines 1700-1732
    */
   sendCommand(code: number): void {
     if (code < 241 || code > 249) {
@@ -743,7 +727,6 @@ export class Tnz extends EventEmitter {
    *
    * Handles 12-bit (6+6), 14-bit, and 16-bit addressing modes.
    *
-   * Reference: Python TNZ tnz.py lines 289-315
    */
   address(addressBytes: Buffer): number {
     if (addressBytes.length !== 2) {
@@ -786,7 +769,6 @@ export class Tnz extends EventEmitter {
   /**
    * Handle pending record data between IAC commands.
    *
-   * Reference: Python TNZ tnz.py lines 2088-2098
    */
   private _dataTelnet(buff: Buffer, start: number, stop: number): void {
     if (start >= stop) return;
@@ -811,7 +793,6 @@ export class Tnz extends EventEmitter {
    * @param buff - Raw bytes received from the socket
    * @returns Number of bytes consumed
    *
-   * Reference: Python TNZ tnz.py lines 2020-2086
    */
   _dataReceived(buff: Buffer): number {
     // Prepend any leftover bytes from previous call
@@ -905,7 +886,6 @@ export class Tnz extends EventEmitter {
    * The data buffer starts with IAC and contains the full command.
    * For subnegotiations, it includes IAC SB ... (without trailing IAC SE).
    *
-   * Reference: Python TNZ tnz.py lines 2154-2344
    */
   _process(data: Buffer): void {
     if (data.length < 2) return;
@@ -1114,7 +1094,6 @@ export class Tnz extends EventEmitter {
    * Week 2: TN3270E header parsing + dispatch framework.
    * Week 3: actual command processing (Write, Erase/Write, etc.)
    *
-   * Reference: Python TNZ tnz.py lines 2103-2152
    */
   _proc3270ds(data: Buffer): void {
     if (data.length === 0) return;
@@ -1179,7 +1158,6 @@ export class Tnz extends EventEmitter {
   /**
    * Dispatch a 3270 command to the appropriate processor.
    *
-   * Reference: Python TNZ tnz.py lines 2391-2519
    */
   private _processCommand(data: Buffer, command: number): void {
     const start = 0;
@@ -1304,7 +1282,6 @@ export class Tnz extends EventEmitter {
   /**
    * Reset buffer planes and optionally resize to alternate screen.
    *
-   * Reference: Python TNZ tnz.py lines 3829-3861
    */
   eraseReset(useAlternate = false): void {
     this._extendedColorMode = false;
@@ -1332,7 +1309,6 @@ export class Tnz extends EventEmitter {
   /**
    * Reset the MDT (Modified Data Tag) for all fields.
    *
-   * Reference: Python TNZ tnz.py lines 3624-3632
    */
   /** @internal */ _resetMdt(): void {
     const planeFa = this.planeFa;
@@ -1350,7 +1326,6 @@ export class Tnz extends EventEmitter {
   /**
    * Reset partition state.
    *
-   * Reference: Python TNZ tnz.py lines 3634-3638
    */
   /** @internal */ _resetPartition(): void {
     this._replyMode = 0; // Field mode
@@ -1360,7 +1335,6 @@ export class Tnz extends EventEmitter {
   /**
    * Restore keyboard after host processing.
    *
-   * Reference: Python TNZ tnz.py lines 3640-3653
    */
   /** @internal */ _restoreKeyboard(): void {
     this.aid = AID.NONE;
@@ -1375,7 +1349,6 @@ export class Tnz extends EventEmitter {
    *
    * @returns new index past the consumed attribute bytes
    *
-   * Reference: Python TNZ tnz.py lines 4474-4518
    */
   /** @internal */ _setAttributes(
     addr: number,
@@ -1430,7 +1403,6 @@ export class Tnz extends EventEmitter {
    * orders processing). When forMdt=false, the full WCC is processed
    * (called after orders processing).
    *
-   * Reference: Python TNZ tnz.py lines 3442-3463
    */
   /** @internal */ _processWcc(wcc: number, forMdt = false): void {
     if (forMdt) {
@@ -1488,7 +1460,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process orders and data in a 3270 write data stream.
    *
-   * Reference: Python TNZ tnz.py lines 3399-3422
    */
   private _processOrdersData(
     data: Buffer,
@@ -1526,7 +1497,6 @@ export class Tnz extends EventEmitter {
   /**
    * Dispatch a single order.
    *
-   * Reference: Python TNZ tnz.py lines 3082-3097
    */
   private _processOrder(
     data: Buffer,
@@ -1718,7 +1688,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process host character data — write EBCDIC bytes into buffer planes.
    *
-   * Reference: Python TNZ tnz.py lines 2521-2580
    */
   private _processCharData(
     data: Buffer,
@@ -1748,7 +1717,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process W (Write) command.
    *
-   * Reference: Python TNZ tnz.py lines 3424-3441
    */
   private _processW(
     data: Buffer,
@@ -1766,7 +1734,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process EW (Erase/Write) command.
    *
-   * Reference: Python TNZ tnz.py lines 3049-3063
    */
   private _processEw(
     data: Buffer,
@@ -1785,7 +1752,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process EWA (Erase/Write Alternate) command.
    *
-   * Reference: Python TNZ tnz.py lines 3065-3080
    */
   private _processEwa(
     data: Buffer,
@@ -1804,7 +1770,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process EAU (Erase All Unprotected) command.
    *
-   * Reference: Python TNZ tnz.py lines 3037-3047
    */
   private _processEau(): void {
     this._eraseInput(0, 0);
@@ -1823,7 +1788,6 @@ export class Tnz extends EventEmitter {
    * If `short` is true, only the AID byte is sent (short read).
    * Otherwise, AID + cursor address + modified field data.
    *
-   * Reference: Python TNZ tnz.py send_aid()
    */
   sendAid(aid: number, short?: boolean): void {
     if (short === undefined) {
@@ -1833,8 +1797,6 @@ export class Tnz extends EventEmitter {
 
     if (short) {
       // Short read: just AID (no cursor address for PAx/CLEAR according to protocol,
-      // but my previous code added baddr for some reason. Wait, python `rec = bytes([aid])` and if short, sends just `rec`.
-      // Let's check python code:
       // rec = bytes([aid]) ... if short: self.send_3270_data(rec) return
       this.send3270Data(Buffer.from([aid]));
       return;
@@ -1878,7 +1840,6 @@ export class Tnz extends EventEmitter {
    * Linear scan through the buffer. Each position is either a field
    * attribute (emitted as SF/SFE) or character data.
    *
-   * Reference: Python TNZ tnz.py lines 4331-4434
    */
   /** @internal */ _readBuffer(): void {
     const baddr = this.addressBytes(this.curadd);
@@ -1972,7 +1933,6 @@ export class Tnz extends EventEmitter {
    * When saddr < eaddr, emits characters in that range.
    * When saddr === eaddr, emits nothing.
    *
-   * Reference: Python TNZ tnz.py lines 3693-3715
    */
   /** @internal */ _appendCharBytes(
     parts: Buffer[],
@@ -1999,7 +1959,6 @@ export class Tnz extends EventEmitter {
    *
    * Parses the structured field chain and dispatches each SF.
    *
-   * Reference: Python TNZ tnz.py lines 2423-2452
    */
   private _processWsf(data: Buffer, start: number, stop: number): void {
     if (stop - start < 4) {
@@ -2028,7 +1987,6 @@ export class Tnz extends EventEmitter {
   /**
    * Dispatch a single structured field by its ID.
    *
-   * Reference: Python TNZ tnz.py _process_wsf_*
    */
   private _processWsfById(
     sfId: number,
@@ -2060,7 +2018,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process Read Partition structured field.
    *
-   * Reference: Python TNZ tnz.py lines 3465-3511
    */
   private _wsfReadPartition(
     data: Buffer,
@@ -2110,7 +2067,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process Erase/Reset structured field.
    *
-   * Reference: Python TNZ tnz.py lines 3513-3528
    */
   private _wsfEraseReset(
     data: Buffer,
@@ -2130,7 +2086,6 @@ export class Tnz extends EventEmitter {
   /**
    * Process Set Reply Mode structured field.
    *
-   * Reference: Python TNZ tnz.py lines 3530-3550
    */
   private _wsfSetReplyMode(
     data: Buffer,
@@ -2160,7 +2115,6 @@ export class Tnz extends EventEmitter {
    *
    * Dispatches embedded 3270 commands (Write, EW, EWA, EAU).
    *
-   * Reference: Python TNZ tnz.py lines 3552-3564
    */
   private _wsfOutbound3270ds(
     data: Buffer,
@@ -2206,7 +2160,6 @@ export class Tnz extends EventEmitter {
    * capabilities: Usable Area, Character Sets, Color, Highlight,
    * Reply Modes, DDM, Implicit Partitions.
    *
-   * Reference: Python TNZ tnz.py lines 4092-4245
    */
   private _queryReply(): void {
     const parts: Buffer[] = [];

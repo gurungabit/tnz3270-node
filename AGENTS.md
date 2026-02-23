@@ -4,9 +4,8 @@ This document provides guidelines for agents working in this repository.
 
 ## Project Overview
 
-TypeScript port of the Python TNZ library (IBM mainframe TN3270 terminal automation).
+TypeScript library for IBM mainframe TN3270 terminal automation.
 Zero runtime dependencies. Uses built-in EBCDIC lookup tables (cp037, cp1047, cp310).
-Reference Python code lives in the `/tnz` submodule -- read-only, never modify.
 
 ## Commands
 
@@ -136,8 +135,3 @@ Methods that do I/O or block are async. Methods that read memory are sync:
 - Comment *why*, not *what*
 - No TODO comments - create issues instead
 - Remove console.log statements before committing
-
-## Submodule
-
-`/tnz` is the Python TNZ library (reference only). Never modify it.
-Use it to understand protocol behavior, but do not copy code verbatim.
