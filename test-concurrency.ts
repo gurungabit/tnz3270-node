@@ -29,10 +29,19 @@ async function runWorker(workerId: number, user: string, pass: string) {
     });
 
     // Wait for the connection to settle (wait up to 5 seconds for Hercules Version OR Logon ===>)
-    await ati.wait(
+    let rc = await ati.wait(
       5,
       () => ati.scrhas("Hercules Version") || ati.scrhas("Logon ===>"),
     );
+
+    // If we timed out (rc === 0), it means we have a blank screen. Send [clear] to wake up VTAM.
+    if (rc === 0) {
+      console.log(`[Worker ${workerId} | ${user}] Blank screen detected. Waking up VTAM...`);
+      await ati.send("[clear]");
+      rc = await ati.wait(5, () => ati.scrhas("Logon ===>"));
+      if (rc === 0) throw new Error("Failed to wake up VTAM - still no Logon prompt");
+    }
+
     dumpScreen('Initial connection settled');
 
     // If we are on the splash screen, clear it
