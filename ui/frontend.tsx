@@ -47,6 +47,13 @@ function App() {
     
     xtermRef.current = term;
 
+    const showOfflineMessage = (msg: string) => {
+      term.write('\x1b[2J\x1b[H'); // Clear screen
+      const y = 20;
+      const x = Math.max(1, Math.floor((80 - msg.length) / 2));
+      term.write(`\x1b[${y};${x}H\x1b[1m${msg}\x1b[0m`);
+    };
+
     // Connect WebSocket
     const connectWs = () => {
       const wsUrl = `ws://${window.location.host}`;
@@ -69,7 +76,7 @@ function App() {
         stateRef.current.connected = false;
         setLocked(false);
         stateRef.current.locked = false;
-        term.write('\x1b[2J\x1b[H');
+        showOfflineMessage("CLICK CONNECT TO START SESSION (OR SOMETHING I D K)");
         term.options.cursorBlink = false;
         setCursorPos({ row: 1, col: 1 });
       } else if (msg.type === 'screen') {
@@ -97,12 +104,12 @@ function App() {
         stateRef.current.connected = false;
         setLocked(false);
         stateRef.current.locked = false;
-        term.write('\x1b[2J\x1b[H');
         term.options.cursorBlink = false;
         setCursorPos({ row: 1, col: 1 });
         
         // Auto-reconnect after 2 seconds
         setIsReconnecting(true);
+        showOfflineMessage("RECONNECTING...");
         setTimeout(() => {
           if (wsRef.current?.readyState === WebSocket.CLOSED) {
             connectWs();
@@ -111,6 +118,7 @@ function App() {
       };
     };
 
+    showOfflineMessage("CLICK CONNECT TO START SESSION (OR SOMETHING I D K)");
     connectWs();
 
     const sendWs = (data: unknown) => {
