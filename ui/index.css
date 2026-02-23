@@ -39,14 +39,42 @@ header {
 }
 
 .sidebar {
-  width: 480px;
+  width: 600px;
   background: var(--panel-bg);
   border-left: 1px solid var(--border-color);
-  padding: 12px 24px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   overflow-y: auto;
+}
+
+.sidebar-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.sidebar-section {
+  flex: 1;
+}
+
+.macro-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.macro-grid button {
+  background: #111;
+  border: 1px solid #333;
+  color: #4af626;
+  font-family: inherit;
+  font-size: 0.7rem;
+  padding: 6px 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  text-transform: uppercase;
+  transition: all 0.1s ease;
 }
 
 .kbd-hints {
