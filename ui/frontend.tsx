@@ -27,8 +27,8 @@ function App() {
       rows: 43,
       cols: 80,
       fontFamily: '"IBM Plex Mono", monospace',
-      fontSize: 12,
-      lineHeight: 1,
+      fontSize: 14,
+      lineHeight: 1.05,
       letterSpacing: 0,
       fontWeight: 500,
       theme: {
