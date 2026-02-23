@@ -13,6 +13,14 @@
     "z/os",
     "mvs"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gurungabit/tnz3270-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gurungabit/tnz3270-node/issues"
+  },
+  "homepage": "https://github.com/gurungabit/tnz3270-node#readme",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "devDependencies": {
