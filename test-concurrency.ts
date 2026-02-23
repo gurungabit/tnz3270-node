@@ -8,6 +8,17 @@ async function runWorker(workerId: number, user: string, pass: string) {
   // Make the wait loop check the screen every 50ms
   ati.set("WAITSLEEP", 0.05);
 
+  const dumpScreen = (msg: string) => {
+    console.log(`\n=============================================================`);
+    console.log(`[ Worker ${workerId} | ${user} ] ${msg}`);
+    console.log(`=============================================================`);
+    const tnz = ati.getTnz();
+    if (tnz) {
+      console.log(tnz.scrstr(0, 0, true));
+    }
+    console.log(`=============================================================\n`);
+  };
+
   try {
     console.log(`[Worker ${workerId} | ${user}] Connecting to mainframe...`);
     await ati.connectSession(`TK4_${workerId}`, {
@@ -22,11 +33,13 @@ async function runWorker(workerId: number, user: string, pass: string) {
       5,
       () => ati.scrhas("Hercules Version") || ati.scrhas("Logon ===>"),
     );
+    dumpScreen('Initial connection settled');
 
     // If we are on the splash screen, clear it
     if (ati.scrhas("Hercules Version")) {
       await ati.send("[enter]");
       await ati.wait(10, () => !ati.scrhas("Hercules Version"));
+      dumpScreen('Cleared Hercules splash screen');
     }
 
     console.log(
@@ -47,36 +60,44 @@ async function runWorker(workerId: number, user: string, pass: string) {
             "Timeout waiting for Logon prompt (even after [clear])",
           );
       }
+      dumpScreen(`Cycle ${i}: Reached Logon prompt`);
 
       // Send Logon command
       await ati.send("[clear]");
       await ati.wait(2, () => ati.keyLock === false);
       await ati.send(`L ${user}[enter]`);
+      dumpScreen(`Cycle ${i}: Sent L ${user}`);
 
       // Enter password
       rc = await ati.wait(10, () => ati.scrhas("PASSWORD"));
       if (rc === 0) throw new Error("Timeout waiting for password prompt");
       await ati.send(`${pass}[enter]`);
+      dumpScreen(`Cycle ${i}: Sent Password`);
 
       // Clear the two *** prompts (Welcome + Fortune Cookie)
       rc = await ati.wait(10, () => ati.scrhas("Welcome to the TSO system"));
       if (rc === 0) throw new Error("Timeout waiting for Welcome Banner");
       await ati.send("[enter]");
+      dumpScreen(`Cycle ${i}: Cleared Welcome Banner`);
 
       rc = await ati.wait(10, () => ati.scrhas("***"));
       if (rc === 0) throw new Error("Timeout waiting for Fortune cookie");
       await ati.send("[enter]");
+      dumpScreen(`Cycle ${i}: Cleared Fortune Cookie`);
 
       // Wait for Main Menu
       rc = await ati.wait(10, () => ati.scrhas("Option ===>"));
       if (rc === 0) throw new Error("Timeout waiting for ISPF Menu");
+      dumpScreen(`Cycle ${i}: Reached ISPF Main Menu`);
 
       // Exit ISPF
       await ati.send("X[enter]");
       await ati.wait(10, () => ati.scrhas("READY"));
+      dumpScreen(`Cycle ${i}: Exited ISPF, at READY prompt`);
 
       // Logoff TSO
       await ati.send("LOGOFF[enter]");
+      dumpScreen(`Cycle ${i}: Sent LOGOFF`);
 
       console.log(
         `[Worker ${workerId} | ${user}] Completed cycle ${i}/${ITERATIONS} ✅`,
