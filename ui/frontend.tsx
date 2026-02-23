@@ -27,18 +27,18 @@ function App() {
       rows: 43,
       cols: 80,
       fontFamily: '"IBM Plex Mono", monospace',
-      fontSize: 14,
-      lineHeight: 1.05,
+      fontSize: 12,
+      lineHeight: 1,
       letterSpacing: 0,
       fontWeight: 500,
       theme: {
         background: '#000000',
-        foreground: '#4af626',
+        foreground: '#4af626', // Retro green
         cursor: '#4af626',
+        selectionBackground: 'rgba(74, 246, 38, 0.3)',
       },
-      cursorBlink: false, cursorStyle: "block", cursorWidth: 2,
+      allowProposedApi: true,
       scrollback: 0,
-      allowProposedApi: true
     });
 
     if (terminalRef.current) {
