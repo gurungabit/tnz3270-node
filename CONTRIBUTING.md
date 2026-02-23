@@ -13,6 +13,7 @@ If you've noticed a bug or have a feature request, make sure to check the [Issue
 1. **Fork** the repo on GitHub
 2. **Clone** the project to your own machine
 3. **Install dependencies**:
+
    ```bash
    bun install
    ```
@@ -67,7 +68,7 @@ When you're ready to submit your changes, please follow these guidelines:
 
 ## 5. Architecture Notes
 
-For a full breakdown of the architecture (how the `Tnz` class delegates to parser, buffer, keyboard, screen, and connection), please see [AGENTS.md](./AGENTS.md) or explore `src/core/`.
+For a full breakdown of the architecture (how the `Tnz` class delegates to parser, buffer, keyboard, screen, and connection), please see [ARCHITECTURE.md](./ARCHITECTURE.md) or explore `src/core/`.
 
 ---
 
