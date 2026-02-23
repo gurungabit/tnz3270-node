@@ -218,7 +218,7 @@ export class FileTransfer {
     ]);
     header.writeUInt32BE(this._ddmrecnum, 5);
 
-    const maxlen = (this.tnz as any)._limin - header.length - 4; 
+    const maxlen = this.tnz._limin - header.length - 4; 
     
     if (!this._indsFileBuffer || this._indsFileOffset >= this._indsFileBuffer.length) {
       this._indsisf = Buffer.alloc(0);

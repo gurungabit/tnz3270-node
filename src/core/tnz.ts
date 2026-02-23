@@ -13,85 +13,19 @@ import * as net from 'node:net';
 import * as tls from 'node:tls';
 
 import { AID, CMD, ORDER, QR_TYPE, SF_ID, TELNET } from '../types';
+import { TnzError, TnzTerminalError, bit6, ReadState } from './base';
 import * as kb from './keyboard';
 import * as screen from './screen';
 import * as bufUtil from './buffer';
 
 import type { CodecEntry, TnzOptions } from '../types';
+export { TnzError, TnzTerminalError, TnzTransferError, bit6, ReadState } from './base';
 import { getCodec } from '../utils/codepage';
 import {
   escapeIac,
   findIacSequences,
   unescapeIac,
 } from './telnet';
-
-// ---------------------------------------------------------------------------
-// Error classes
-// ---------------------------------------------------------------------------
-
-/** General Tnz error. */
-export class TnzError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TnzError';
-  }
-}
-
-/** Error that may be related to terminal characteristics. */
-export class TnzTerminalError extends TnzError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TnzTerminalError';
-  }
-}
-
-/** Error processing file transfer. */
-export class TnzTransferError extends TnzError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TnzTransferError';
-  }
-}
-
-// ---------------------------------------------------------------------------
-// ReadState enum
-// ---------------------------------------------------------------------------
-
-/** 3270 data stream read state. */
-export enum ReadState {
-  NORMAL = 'NORMAL',
-  RENTER = 'RENTER',
-  RREAD = 'RREAD',
-}
-
-// ---------------------------------------------------------------------------
-// bit6 — module-level function
-// ---------------------------------------------------------------------------
-
-/**
- * Translate 6-bit control integer to printable EBCDIC byte value.
- *
- * Used for buffer address encoding where bits 0-1 are reserved.
- * See figure D-1 in 3270 Data Stream Programmers Reference.
- *
- * Reference: Python TNZ tnz.py line 4946
- */
-export function bit6(controlInt: number): number {
-  controlInt &= 0x3f; // zero bits 0,1
-  const cc11 = controlInt | 0xc0; // bits 0,1 = 11
-
-  if (controlInt === 48) return cc11; // 11 0000 -> 0xF0
-
-  const cc01 = controlInt | 0x40; // bits 0,1 = 01
-
-  if (controlInt === 33) return cc01; // 10 0001 -> 0x61
-
-  if ((controlInt & 0x0f) > 0 && (controlInt & 0x0f) < 10) {
-    return cc11; // low nibble 1-9
-  }
-
-  return cc01;
-}
 
 // ---------------------------------------------------------------------------
 // Tnz class
@@ -1326,6 +1260,43 @@ export class Tnz extends EventEmitter {
   fields(saddr?: number, eaddr?: number): Generator<[number, number]> { return bufUtil.fields(this, saddr, eaddr); }
   /** @internal */ _tab(saddr: number, _eaddr = 0): number { return bufUtil._tab(this, saddr, _eaddr); }
 
+  /** @internal */ addressDecode(data: Buffer, start: number): number {
+    return bufUtil.addressDecode(data, start);
+  }
+
+  /** @internal */ _processSa(cat: number, cav: number, addr?: number): void {
+    if (cat === 0x00) {
+      // Reset all character attributes
+      if (addr !== undefined) {
+        this.planeEh[addr] = 0;
+        this.planeCs[addr] = 0;
+        this.planeFg[addr] = 0;
+        this.planeBg[addr] = 0;
+      } else {
+        this._procEh = 0;
+        this._procCs = 0;
+        this._procFg = 0;
+        this._procBg = 0;
+      }
+    } else if (cat === 0x41) {
+      if (addr !== undefined) this.planeEh[addr] = cav;
+      else this._procEh = cav;
+    } else if (cat === 0x42) {
+      if (!this._extendedColorMode) this._extendedColorMode = true;
+      if (addr !== undefined) this.planeFg[addr] = cav;
+      else this._procFg = cav;
+    } else if (cat === 0x43) {
+      if (addr !== undefined) this.planeCs[addr] = cav;
+      else this._procCs = cav;
+    } else if (cat === 0x45) {
+      if (!this._extendedColorMode) this._extendedColorMode = true;
+      if (addr !== undefined) this.planeBg[addr] = cav;
+      else this._procBg = cav;
+    } else {
+      throw new TnzError(`Bad character attribute type: 0x${cat.toString(16)}`);
+    }
+  }
+
   // =========================================================================
   // State reset helpers
   // =========================================================================
@@ -1406,7 +1377,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 4474-4518
    */
-  private _setAttributes(
+  /** @internal */ _setAttributes(
     addr: number,
     data: Buffer,
     idx: number,
@@ -1461,7 +1432,7 @@ export class Tnz extends EventEmitter {
    *
    * Reference: Python TNZ tnz.py lines 3442-3463
    */
-  private _processWcc(wcc: number, forMdt = false): void {
+  /** @internal */ _processWcc(wcc: number, forMdt = false): void {
     if (forMdt) {
       if (wcc & 0x01) {
         // Bit 7: reset modified data tags
@@ -1658,32 +1629,7 @@ export class Tnz extends EventEmitter {
           throw new TnzError(`SA requires 3 bytes, got ${stop - start}`);
         }
         ptErase = false;
-        const cat = data[start + 1];
-        const cav = data[start + 2];
-
-        if (cat === 0x00) {
-          // Reset all character attributes
-          this._procEh = 0;
-          this._procCs = 0;
-          this._procFg = 0;
-          this._procBg = 0;
-        } else if (cat === 0x41) {
-          this._procEh = cav;
-        } else if (cat === 0x42) {
-          if (!this._extendedColorMode) {
-            this._extendedColorMode = true;
-          }
-          this._procFg = cav;
-        } else if (cat === 0x43) {
-          this._procCs = cav;
-        } else if (cat === 0x45) {
-          if (!this._extendedColorMode) {
-            this._extendedColorMode = true;
-          }
-          this._procBg = cav;
-        } else {
-          throw new TnzError(`Bad character attribute type: ${cat}`);
-        }
+        this._processSa(data[start + 1], data[start + 2]);
         return { nextIdx: start + 3, ptErase };
       }
 

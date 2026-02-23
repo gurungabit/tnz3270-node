@@ -1,4 +1,5 @@
-import { Tnz, TnzError } from './tnz';
+import type { Tnz } from './tnz';
+import { TnzError } from './base';
 
 export function ucba(buf: Uint8Array, addr: number, bytes: Uint8Array | number[], start = 0, end?: number): void {
   if (end === undefined) end = bytes.length;

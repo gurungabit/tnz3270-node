@@ -1,0 +1,229 @@
+:root {
+  --bg-color: #000000;
+  --panel-bg: #0F0F0F;
+  --border-color: #333333;
+  --text-main: #E0E0E0;
+  --accent-green: #4AF626;
+  --accent-amber: #FFB000;
+  --btn-bg: #1A1A1A;
+  --btn-hover: #2A2A2A;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'IBM Plex Mono', 'Courier New', Courier, monospace;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+header {
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-weight: 700;
+  color: var(--accent-green);
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+input {
+  background: #000;
+  border: 1px solid var(--border-color);
+  color: var(--accent-green);
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 8px 12px;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+input:focus {
+  border-color: var(--accent-green);
+}
+
+button {
+  background: var(--btn-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: all 0.1s ease-in-out;
+}
+
+button:hover { 
+  background: var(--btn-hover); 
+  border-color: #555;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button.primary { 
+  background: var(--accent-green); 
+  color: #000; 
+  border-color: var(--accent-green); 
+}
+
+button.primary:hover { 
+  background: #3dd21d; 
+}
+
+.main-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #000000;
+  /* subtle radial gradient to simulate CRT monitor glow */
+  background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
+}
+
+.terminal-wrapper {
+  padding: 4px;
+  border: 1px solid #333;
+  background: #000;
+  box-shadow: 0 0 40px rgba(74, 246, 38, 0.05), inset 0 0 20px rgba(0,0,0,1);
+  border-radius: 2px;
+  line-height: 0;
+  width: fit-content;
+}
+
+/* Make sure the xterm canvas itself doesn't have ugly white borders or outlines */
+.xterm-viewport {
+  background-color: #000000 !important;
+  overflow: hidden !important;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebar {
+  width: 360px;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+}
+
+.status-panel {
+  padding: 16px;
+  background: #000;
+  border: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+.status-indicator.ready { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green);}
+.status-indicator.locked { background: var(--accent-amber); box-shadow: 0 0 10px var(--accent-amber);}
+.status-indicator.offline { background: #333; }
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.macro-grid button {
+  padding: 12px 0;
+  font-size: 0.75rem;
+  background: #000;
+  color: #aaa;
+}
+
+.macro-grid button:hover {
+  background: var(--accent-green);
+  color: #000;
+  border-color: var(--accent-green);
+}
+
+h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #666;
+  margin: 0 0 12px 0;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #222;
+  padding-bottom: 6px;
+}
+
+.error-banner {
+  background: #1a0000;
+  border-bottom: 1px solid #662222;
+  color: #ff4444;
+  padding: 10px 24px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+.kbd-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.kbd-hints kbd {
+  display: inline-block;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: #aaa;
+  margin-right: 8px;
+  min-width: 28px;
+  text-align: center;
+}

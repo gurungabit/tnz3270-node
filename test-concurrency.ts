@@ -5,8 +5,8 @@ const ITERATIONS = 100;
 async function runWorker(workerId: number, user: string, pass: string) {
   const ati = new Ati();
 
-  // Make the wait loop check the screen every 50ms
-  ati.set("WAITSLEEP", 0.05);
+  // Make the wait loop check the screen every 50ms (5 centiseconds)
+  ati.set("WAITSLEEP", 5);
 
   const dumpScreen = (msg: string) => {
     console.log(`\n=============================================================`);

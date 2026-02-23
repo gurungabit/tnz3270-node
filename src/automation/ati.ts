@@ -230,8 +230,8 @@ export class Ati {
   /** Default wait timeout in seconds. */
   maxWait = 120;
 
-  /** Seconds between wait re-checks. */
-  waitSleep = 0.05;
+  /** Centiseconds between wait re-checks (1-99, i.e. 10ms-990ms). */
+  waitSleep = 5;
 
   /** Seconds to wait for keyboard unlock in send(). */
   keyUnlock = 60;
@@ -803,9 +803,9 @@ export class Ati {
         return 0;
       }
 
-      // Sleep for waitSleep or remaining time, whichever is less
+      // Sleep for waitSleep (centiseconds) or remaining time, whichever is less
       const sleepMs = Math.min(
-        this.waitSleep * 1000,
+        this.waitSleep * 10,
         remaining,
       );
       await new Promise<void>((resolve) =>
@@ -992,8 +992,8 @@ export class Ati {
         this.maxWait = Ati._parseSeconds(valStr);
         return;
       case 'WAITSLEEP':
-        // Allow decimals down to 0.01 seconds (10ms)
-        this.waitSleep = Math.max(0.01, Math.min(99, Number(valStr)));
+        // Centiseconds (1-99, i.e. 10ms-990ms)
+        this.waitSleep = Math.max(1, Math.min(99, Math.round(Number(valStr))));
         return;
       case 'KEYUNLOCK':
         this.keyUnlock = Math.max(1, Number(valStr));

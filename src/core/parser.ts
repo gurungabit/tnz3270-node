@@ -1,4 +1,5 @@
-import { Tnz, TnzError, bit6 } from './tnz';
+import type { Tnz } from './tnz';
+import { TnzError, bit6 } from './base';
 import { isProtectedAttr } from './keyboard';
 import { CMD, ORDER, SF_ID, QR_TYPE } from '../types';
 
@@ -106,9 +107,9 @@ export function _wsfSetReplyMode(tnz: Tnz, data: Buffer, start: number, stop: nu
 
   const mode = data[start + 4];
   if (mode <= 1) {
-    tnz._replyCattrs = Buffer.alloc(0) as any;
+    tnz._replyCattrs = Buffer.alloc(0);
   } else if (mode === 2) {
-    tnz._replyCattrs = data.subarray(start + 5, stop) as any;
+    tnz._replyCattrs = Buffer.from(data.subarray(start + 5, stop));
   } else {
     throw new TnzError(`Bad reply mode: ${mode}`);
   }
@@ -149,7 +150,7 @@ export function _eraseReset(tnz: Tnz, ipz: boolean): void {
   tnz.planeFg.fill(0, 0, tnz.bufferSize);
   tnz.planeBg.fill(0, 0, tnz.bufferSize);
 
-  (tnz as any)._resetPartition();
+  (tnz)._resetPartition();
 
   if (!ipz) {
     tnz.curadd = 0;
@@ -159,32 +160,32 @@ export function _eraseReset(tnz: Tnz, ipz: boolean): void {
 export function _processW(tnz: Tnz, data: Buffer, start: number, stop: number): void {
   if (stop - start <= 1) return;
   _processOrdersData(tnz, data, start + 2, stop);
-  (tnz as any)._processWcc(data[start + 1]);
+  (tnz)._processWcc(data[start + 1]);
 }
 
 export function _processEw(tnz: Tnz, data: Buffer, start: number, stop: number): void {
   if (stop - start <= 1) return;
   _eraseReset(tnz, false);
   _processOrdersData(tnz, data, start + 2, stop);
-  (tnz as any)._processWcc(data[start + 1]);
+  (tnz)._processWcc(data[start + 1]);
 }
 
 export function _processEwa(tnz: Tnz, data: Buffer, start: number, stop: number): void {
   if (stop - start <= 1) return;
   _eraseReset(tnz, true);
   _processOrdersData(tnz, data, start + 2, stop);
-  (tnz as any)._processWcc(data[start + 1]);
+  (tnz)._processWcc(data[start + 1]);
 }
 
 export function _processEau(tnz: Tnz): void {
   tnz._eraseInput(0, 0);
   tnz._resetMdt();
   tnz.keyHome();
-  (tnz as any)._restoreKeyboard();
+  (tnz)._restoreKeyboard();
 }
 
 export function _processRb(tnz: Tnz): void {
-  (tnz as any)._readBuffer();
+  (tnz)._readBuffer();
 }
 
 export function _processRm(tnz: Tnz): void {
@@ -217,15 +218,18 @@ export function _processOrder(tnz: Tnz, data: Buffer, start: number, stop: numbe
   switch (order) {
     case ORDER.SF:
       if (start + 1 >= stop) throw new TnzError('SF needs 1 byte');
-      tnz.planeFa[tnz.curadd] = bit6(data[start + 1] as any as any);
+      tnz.planeFa[tnz.curadd] = bit6(data[start + 1]);
       tnz.planeDc[tnz.curadd] = 0;
-      (tnz as any)._setAttributes(tnz.curadd, false);
+      tnz.planeEh[tnz.curadd] = 0;
+      tnz.planeCs[tnz.curadd] = 0;
+      tnz.planeFg[tnz.curadd] = 0;
+      tnz.planeBg[tnz.curadd] = 0;
       tnz.curadd = (tnz.curadd + 1) % tnz.bufferSize;
       return start + 2;
 
     case ORDER.SBA:
       if (start + 2 >= stop) throw new TnzError('SBA needs 2 bytes');
-      tnz.curadd = (tnz as any).addressDecode(data, start + 1);
+      tnz.curadd = tnz.addressDecode(data, start + 1);
       return start + 3;
 
     case ORDER.IC:
@@ -237,71 +241,86 @@ export function _processOrder(tnz: Tnz, data: Buffer, start: number, stop: numbe
 
     case ORDER.RA:
       if (start + 3 >= stop) throw new TnzError('RA needs 3 bytes');
-      const ea = (tnz as any).addressDecode(data, start + 1);
+      const ea = tnz.addressDecode(data, start + 1);
       const ch = data[start + 3];
-      if (ORDER_SET.has(ch) || isProtectedAttr(ch as any)) {
+      if (ORDER_SET.has(ch) || isProtectedAttr(ch)) {
         throw new TnzError('Invalid character for RA');
       }
-      if (ea === tnz.curadd) {
-        (tnz as any)._appendCharBytes(Buffer.alloc(tnz.bufferSize, ch), 0, false);
-      } else {
-        let len = ea - tnz.curadd;
-        if (len < 0) len += tnz.bufferSize;
-        (tnz as any)._appendCharBytes(Buffer.alloc(len, ch), 0, false);
+      
+      let rlen = ea - tnz.curadd;
+      if (rlen <= 0) rlen += tnz.bufferSize;
+      
+      for (let i = 0; i < rlen; i++) {
+        const addr = (tnz.curadd + i) % tnz.bufferSize;
+        tnz.planeDc[addr] = ch;
+        tnz.planeFa[addr] = 0;
+        tnz.planeEh[addr] = 0;
+        tnz.planeCs[addr] = 0;
+        tnz.planeFg[addr] = 0;
+        tnz.planeBg[addr] = 0;
       }
       tnz.curadd = ea;
       return start + 4;
 
     case ORDER.EUA:
       if (start + 2 >= stop) throw new TnzError('EUA needs 2 bytes');
-      const euaAddr = (tnz as any).addressDecode(data, start + 1);
+      const euaAddr = tnz.addressDecode(data, start + 1);
       tnz._eraseInput(tnz.curadd, euaAddr);
       tnz.curadd = euaAddr;
       return start + 3;
 
     case ORDER.SA:
       if (start + 2 >= stop) throw new TnzError('SA needs 2 bytes');
-      (tnz as any)._processSa(data[start + 1], data[start + 2]);
+      tnz._processSa(data[start + 1], data[start + 2]);
       return start + 3;
 
     case ORDER.SFE:
       if (start + 1 >= stop) throw new TnzError('SFE needs 1 byte');
       const numPairs = data[start + 1];
       if (start + 1 + numPairs * 2 >= stop) throw new TnzError('SFE length mismatch');
-      tnz.planeFa[tnz.curadd] = 0;
-      tnz.planeDc[tnz.curadd] = 0;
-      (tnz as any)._setAttributes(tnz.curadd, true);
+      
+      const sfeAddr = tnz.curadd;
+      tnz.planeFa[sfeAddr] = 0;
+      tnz.planeDc[sfeAddr] = 0;
+      tnz.planeEh[sfeAddr] = 0;
+      tnz.planeCs[sfeAddr] = 0;
+      tnz.planeFg[sfeAddr] = 0;
+      tnz.planeBg[sfeAddr] = 0;
+      
       for (let i = 0; i < numPairs; i++) {
         const type = data[start + 2 + i * 2];
         const value = data[start + 3 + i * 2];
         if (type === 0xc0) {
-          tnz.planeFa[tnz.curadd] = bit6(value as any as any);
+          tnz.planeFa[sfeAddr] = bit6(value);
         } else {
-          (tnz as any)._processSa(type, value, tnz.curadd);
+          tnz._processSa(type, value, sfeAddr);
         }
       }
-      tnz.curadd = (tnz.curadd + 1) % tnz.bufferSize;
+      tnz.curadd = (sfeAddr + 1) % tnz.bufferSize;
       return start + 2 + numPairs * 2;
 
     case ORDER.MF:
       if (start + 1 >= stop) throw new TnzError('MF needs 1 byte');
       const mfPairs = data[start + 1];
       if (start + 1 + mfPairs * 2 >= stop) throw new TnzError('MF length mismatch');
+      const mfAddr = tnz.curadd;
       for (let i = 0; i < mfPairs; i++) {
         const type = data[start + 2 + i * 2];
         const value = data[start + 3 + i * 2];
         if (type === 0xc0) {
-          tnz.planeFa[tnz.curadd] = bit6(value as any as any);
+          tnz.planeFa[mfAddr] = bit6(value);
         } else {
-          (tnz as any)._processSa(type, value, tnz.curadd);
+          tnz._processSa(type, value, mfAddr);
         }
       }
       return start + 2 + mfPairs * 2;
 
     case ORDER.GE:
       if (start + 1 >= stop) throw new TnzError('GE needs 1 byte');
-      const geBuf = Buffer.alloc(1, data[start + 1]);
-      (tnz as any)._appendCharBytes(geBuf, 0xf1);
+      const geAddr = tnz.curadd;
+      tnz.planeDc[geAddr] = data[start + 1];
+      tnz.planeCs[geAddr] = 0xf1;
+      tnz.curadd = (geAddr + 1) % tnz.bufferSize;
       return start + 2;
 
     default:
@@ -312,10 +331,15 @@ export function _processOrder(tnz: Tnz, data: Buffer, start: number, stop: numbe
 export function _processCharData(tnz: Tnz, data: Buffer, start: number, stop: number): number {
   let p = start;
   while (p < stop && !ORDER_SET.has(data[p])) {
+    const addr = tnz.curadd;
+    tnz.planeDc[addr] = data[p];
+    tnz.planeCs[addr] = 0; // default character set
+    tnz.planeEh[addr] = 0; // default highlighting
+    tnz.planeFg[addr] = 0; // default foreground
+    tnz.planeBg[addr] = 0; // default background
+    tnz.curadd = (addr + 1) % tnz.bufferSize;
     p++;
   }
-  const chunk = data.subarray(start, p);
-  (tnz as any)._appendCharBytes(chunk, 0, false);
   return p;
 }
 

@@ -1,4 +1,5 @@
-import { Tnz } from './tnz';
+import type { Tnz } from './tnz';
+import * as bufUtil from './buffer';
 
 export function _translateDcToC(buf: Buffer): Buffer {
   const out = Buffer.allocUnsafe(buf.length);
@@ -75,7 +76,7 @@ export function scrstr(tnz: Tnz, saddr = 0, eaddr = 0, rstrip?: boolean): string
   const parts: string[] = [];
   let addr0 = saddr;
   for (const addr1 of _iterCsAddr(tnz, saddr, eaddr)) {
-    const raw = Tnz.rcba(tnz.planeDc, addr0, addr1);
+    const raw = bufUtil.rcba(tnz.planeDc, addr0, addr1);
     const translated = _translateDcToC(Buffer.from(raw));
     const csIdx = tnz.planeCs[addr0];
 

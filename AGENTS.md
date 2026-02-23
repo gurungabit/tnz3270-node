@@ -59,7 +59,6 @@ src/
   types.ts                  # Constants (AID, ORDER, TELNET, CMD, FA, etc.) + interfaces
   core/
     tnz.ts                  # Tnz class: primary state holder, extends EventEmitter
-    connection.ts           # Telnet TCP/TLS negotiation and transport streams
     parser.ts               # Binary 3270 Data Stream unwrapper and processor
     buffer.ts               # Circular EBCDIC screen grid manipulations
     keyboard.ts             # Key-to-AID event dispatching and cursor routing
@@ -101,7 +100,7 @@ The `FileTransfer` system uses an event-driven architecture. `Tnz` emits `ddm` e
 - Always define return types for exported functions
 - Use `interface` for object shapes, `type` for unions/intersections
 - Avoid `!` operator unless absolutely necessary
-- Use `unknown` instead of `any`; narrow types before use
+- **Never use `any`**. Use `unknown` and narrow types before use. No exceptions — not even `as any` casts.
 - Use plain `number` for buffer addresses (no branded types)
 - Use `as const` for constant objects (AID, ORDER, TELNET, etc.)
 - Use `/** @internal */` for private properties that need to be accessed by delegated functions.

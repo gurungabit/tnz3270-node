@@ -1,0 +1,8 @@
+{
+  "name": "tnz-node-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run --hot index.ts"
+  }
+}

@@ -1,4 +1,6 @@
-import { Tnz, TnzError, ReadState, bit6 } from './tnz';
+import type { Tnz } from './tnz';
+import * as bufUtil from './buffer';
+import { TnzError, ReadState, bit6 } from './base';
 import { AID } from '../types';
 
 export function keyHome(tnz: Tnz): void {
@@ -138,7 +140,7 @@ export function keyEnd(tnz: Tnz): void {
   const [eaddr] = tnz.nextField(caddr);
   if (faddr1 === eaddr) return;
 
-  const fieldDc = Tnz.rcba(tnz.planeDc, faddr1, eaddr);
+  const fieldDc = bufUtil.rcba(tnz.planeDc, faddr1, eaddr);
   let offset: number;
   if (fieldDc[fieldDc.length - 1] === 0x40) {
     let i = fieldDc.length;
@@ -214,11 +216,11 @@ export function _keyBytes(
     const zeros = new Uint8Array(usedLen);
     const csBytes = new Uint8Array(usedLen).fill(codecIndex);
 
-    Tnz.ucba(tnz.planeDc, ca1, slice);
-    Tnz.ucba(tnz.planeEh, ca1, zeros);
-    Tnz.ucba(tnz.planeCs, ca1, csBytes);
-    Tnz.ucba(tnz.planeFg, ca1, zeros);
-    Tnz.ucba(tnz.planeBg, ca1, zeros);
+    bufUtil.ucba(tnz.planeDc, ca1, slice);
+    bufUtil.ucba(tnz.planeEh, ca1, zeros);
+    bufUtil.ucba(tnz.planeCs, ca1, csBytes);
+    bufUtil.ucba(tnz.planeFg, ca1, zeros);
+    bufUtil.ucba(tnz.planeBg, ca1, zeros);
 
     // Set MDT
     if (fa1 >= 0) {
@@ -295,8 +297,8 @@ export function keyInsData(tnz: Tnz, text: string): number {
 
   const addr1 = (addr0 + insLen) % bufferSize;
   const addr3 = (i + 1) % bufferSize;
-  const ucba = Tnz.ucba;
-  const rcba = Tnz.rcba;
+  const ucba = bufUtil.ucba;
+  const rcba = bufUtil.rcba;
   
   ucba(planeDc, addr1, rcba(planeDc, addr0, addr3));
   ucba(planeEh, addr1, rcba(planeEh, addr0, addr3));
@@ -327,11 +329,11 @@ export function keyDelete(tnz: Tnz): boolean {
   const addr2 = (addr3 - 1 + bufferSize) % bufferSize;
 
   if (addr1 !== addr3) {
-    Tnz.ucba(tnz.planeDc, addr0, Tnz.rcba(tnz.planeDc, addr1, addr3));
-    Tnz.ucba(tnz.planeEh, addr0, Tnz.rcba(tnz.planeEh, addr1, addr3));
-    Tnz.ucba(tnz.planeCs, addr0, Tnz.rcba(tnz.planeCs, addr1, addr3));
-    Tnz.ucba(tnz.planeFg, addr0, Tnz.rcba(tnz.planeFg, addr1, addr3));
-    Tnz.ucba(tnz.planeBg, addr0, Tnz.rcba(tnz.planeBg, addr1, addr3));
+    bufUtil.ucba(tnz.planeDc, addr0, bufUtil.rcba(tnz.planeDc, addr1, addr3));
+    bufUtil.ucba(tnz.planeEh, addr0, bufUtil.rcba(tnz.planeEh, addr1, addr3));
+    bufUtil.ucba(tnz.planeCs, addr0, bufUtil.rcba(tnz.planeCs, addr1, addr3));
+    bufUtil.ucba(tnz.planeFg, addr0, bufUtil.rcba(tnz.planeFg, addr1, addr3));
+    bufUtil.ucba(tnz.planeBg, addr0, bufUtil.rcba(tnz.planeBg, addr1, addr3));
   }
 
   tnz.planeDc[addr2] = 0;
