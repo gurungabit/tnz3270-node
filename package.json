@@ -54,7 +54,8 @@
     "format": "tsdx format",
     "format:check": "tsdx format --check",
     "typecheck": "tsdx typecheck",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "release": "bash scripts/release.sh"
   },
   "type": "module",
   "types": "./dist/index.d.ts"
