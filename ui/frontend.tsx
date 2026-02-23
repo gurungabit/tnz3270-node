@@ -76,7 +76,7 @@ function App() {
         stateRef.current.connected = false;
         setLocked(false);
         stateRef.current.locked = false;
-        showOfflineMessage("CLICK CONNECT TO START SESSION (OR SOMETHING I D K)");
+        showOfflineMessage("CLICK CONNECT TO START SESSION");
         term.options.cursorBlink = false;
         setCursorPos({ row: 1, col: 1 });
       } else if (msg.type === 'screen') {
@@ -118,7 +118,7 @@ function App() {
       };
     };
 
-    showOfflineMessage("CLICK CONNECT TO START SESSION (OR SOMETHING I D K)");
+    showOfflineMessage("CLICK CONNECT TO START SESSION");
     connectWs();
 
     const sendWs = (data: unknown) => {
