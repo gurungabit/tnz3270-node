@@ -55,17 +55,20 @@ async function main() {
     dumpScreen('Sent L HERC01, waiting for password prompt...');
 
     // 3. Wait for the actual password screen
-    await ati.wait(10, () => ati.scrhas('PASSWORD'));
+    let rc = await ati.wait(10, () => ati.scrhas('PASSWORD'));
+    if (rc === 0) throw new Error('Timeout waiting for password prompt');
     dumpScreen('Password Screen Reached');
 
     // 4. Type the password and press Enter
-    // We can use [home] to go to the first field on the password screen
+    // TSO places the cursor precisely where it wants you to type the password.
+    // Do NOT tab or home, just type it exactly where the cursor is.
     console.log('Entering password...');
-    await ati.send('[home]CUL8TR[enter]');
+    await ati.send('CUL8TR[enter]');
     dumpScreen('Sent Password, waiting for Welcome banner...');
 
     // 5. Wait for the Welcome Banner
-    await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
+    rc = await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
+    if (rc === 0) throw new Error('Timeout waiting for Welcome banner');
     dumpScreen('Welcome Banner Reached');
 
     // Press enter to clear the *** prompt

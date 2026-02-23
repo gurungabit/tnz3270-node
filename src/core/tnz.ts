@@ -234,6 +234,7 @@ export class Tnz extends EventEmitter {
 
   // -- Encoding --
 
+  tn3270eNegotiated = false;
   /** GE (Graphic Escape) support: 0=none, 1=supported for char set F1 */
   alt = 0;
   /** Character set ID for index 0x00 */

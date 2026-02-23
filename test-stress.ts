@@ -11,28 +11,28 @@ async function main() {
   const USER = 'HERC01';
   const PASS = 'CUL8TR';
 
-  console.log(`🚀 Starting stress test: ${ITERATIONS} Login/Logout cycles\n`);
+  console.log(`🚀 Starting stress test: ${ITERATIONS} Login/Logout cycles on ONE session\n`);
   console.time('Total Time');
 
-  for (let i = 1; i <= ITERATIONS; i++) {
-    process.stdout.write(`Cycle ${i.toString().padStart(2, ' ')}/${ITERATIONS}: `);
+  try {
+    process.stdout.write('Connecting to mainframe... ');
+    await ati.connectSession('TK4', {
+      host: '127.0.0.1',
+      port: 3270,
+      useTn3270e: true,
+      terminalType: 'IBM-3278-2-E',
+    });
     
-    try {
-      // Connect
-      process.stdout.write('Connecting... ');
-      await ati.connectSession(`TK4_${i}`, {
-        host: '127.0.0.1',
-        port: 3270,
-        useTn3270e: true,
-        terminalType: 'IBM-3278-2-E',
-      });
+    // Wait for splash and clear it (only needed once per session)
+    await ati.wait(10, () => ati.scrhas('Hercules Version'));
+    await ati.send('[enter]');
+    await ati.wait(10, () => !ati.scrhas('Hercules Version'));
+    process.stdout.write('Connected.\n\n');
 
-      // Wait for splash and clear it
-      await ati.wait(10, () => ati.scrhas('Hercules Version'));
-      await ati.send('[enter]');
-      await ati.wait(10, () => !ati.scrhas('Hercules Version'));
+    for (let i = 1; i <= ITERATIONS; i++) {
+      process.stdout.write(`Cycle ${i.toString().padStart(2, ' ')}/${ITERATIONS}: `);
       
-      // Wait for Logon prompt
+      // Wait for Logon prompt (we should be dropped back here after LOGOFF)
       await ati.wait(10, () => ati.scrhas('Logon ===>'));
 
       // Send Logon command
@@ -42,17 +42,22 @@ async function main() {
       await ati.send(`L ${USER}[enter]`);
 
       // Enter password
-      await ati.wait(10, () => ati.scrhas('PASSWORD'));
-      await ati.send(`[home]${PASS}[enter]`);
+      let rc = await ati.wait(10, () => ati.scrhas('PASSWORD'));
+      if (rc === 0) throw new Error('Timeout waiting for password prompt');
+      await ati.send(`${PASS}[enter]`);
 
       // Clear the two *** prompts (Welcome + Fortune Cookie)
-      await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
+      rc = await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
+      if (rc === 0) throw new Error('Timeout waiting for Welcome Banner');
       await ati.send('[enter]');
-      await ati.wait(10, () => ati.scrhas('***'));
+      
+      rc = await ati.wait(10, () => ati.scrhas('***'));
+      if (rc === 0) throw new Error('Timeout waiting for Fortune cookie');
       await ati.send('[enter]');
 
       // Wait for Main Menu
-      await ati.wait(10, () => ati.scrhas('Option ===>'));
+      rc = await ati.wait(10, () => ati.scrhas('Option ===>'));
+      if (rc === 0) throw new Error('Timeout waiting for ISPF Menu');
       process.stdout.write('Logged In! Logging out... ');
 
       // Exit ISPF
@@ -61,29 +66,28 @@ async function main() {
 
       // Logoff TSO
       await ati.send('LOGOFF[enter]');
-      await ati.wait(10, () => ati.scrhas('Logon ===>'));
-
-      process.stdout.write('Done. ✅\n');
-
-    } catch (err) {
-      process.stdout.write('FAILED ❌\n');
-      console.error(`\nError during cycle ${i}:`, err);
       
-      // Dump the screen on error to see what went wrong
-      const tnz = ati.getTnz();
-      if (tnz) {
-        console.log('\n--- Screen at failure ---');
-        console.log(tnz.scrstr(0, 0, true));
-        console.log('-------------------------\n');
-      }
-      break; // stop test on first failure
-    } finally {
-      // Always drop the session at the end of the cycle
-      ati.dropSession();
+      process.stdout.write('Done. ✅\n');
     }
+
+  } catch (err) {
+    process.stdout.write('FAILED ❌\n');
+    console.error(`\nError:`, err);
+    
+    // Dump the screen on error to see what went wrong
+    const tnz = ati.getTnz();
+    if (tnz) {
+      console.log('\n--- Screen at failure ---');
+      console.log(tnz.scrstr(0, 0, true));
+      console.log('-------------------------\n');
+    }
+  } finally {
+    // Always drop the session at the end
+    console.log('\nClosing connection...');
+    ati.dropSession();
   }
 
-  console.log('\n🏁 Stress test finished!');
+  console.log('🏁 Stress test finished!');
   console.timeEnd('Total Time');
 }
 

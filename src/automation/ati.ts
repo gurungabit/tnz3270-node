@@ -231,7 +231,7 @@ export class Ati {
   maxWait = 120;
 
   /** Seconds between wait re-checks. */
-  waitSleep = 1;
+  waitSleep = 0.05;
 
   /** Seconds to wait for keyboard unlock in send(). */
   keyUnlock = 60;
@@ -992,7 +992,8 @@ export class Ati {
         this.maxWait = Ati._parseSeconds(valStr);
         return;
       case 'WAITSLEEP':
-        this.waitSleep = Math.max(1, Math.min(99, Number(valStr)));
+        // Allow decimals down to 0.01 seconds (10ms)
+        this.waitSleep = Math.max(0.01, Math.min(99, Number(valStr)));
         return;
       case 'KEYUNLOCK':
         this.keyUnlock = Math.max(1, Number(valStr));
