@@ -64,14 +64,15 @@ function App() {
           stateRef.current.connected = true;
           term.focus();
           term.options.cursorBlink = true;
-        } else if (msg.type === 'disconnected') {
-          setConnected(false);
-          stateRef.current.connected = false;
-          setLocked(false);
-          stateRef.current.locked = false;
-          term.clear();
-          term.options.cursorBlink = false;
-        } else if (msg.type === 'screen') {
+      } else if (msg.type === 'disconnected') {
+        setConnected(false);
+        stateRef.current.connected = false;
+        setLocked(false);
+        stateRef.current.locked = false;
+        term.write('\x1b[2J\x1b[H');
+        term.options.cursorBlink = false;
+        setCursorPos({ row: 1, col: 1 });
+      } else if (msg.type === 'screen') {
           // We write the ansi directly to the terminal
           term.write(msg.data);
       } else if (msg.type === 'status') {
@@ -96,6 +97,9 @@ function App() {
         stateRef.current.connected = false;
         setLocked(false);
         stateRef.current.locked = false;
+        term.write('\x1b[2J\x1b[H');
+        term.options.cursorBlink = false;
+        setCursorPos({ row: 1, col: 1 });
         
         // Auto-reconnect after 2 seconds
         setIsReconnecting(true);
