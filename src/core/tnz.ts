@@ -2450,6 +2450,11 @@ export class Tnz extends EventEmitter {
     return screen.scrstr(this, saddr, eaddr, rstrip);
   }
 
+  /** Like scrstr but masks hidden (non-display) field content with asterisks. */
+  scrstrMasked(saddr = 0, eaddr = 0, rstrip?: boolean): string {
+    return screen.scrstrMasked(this, saddr, eaddr, rstrip);
+  }
+
   scrhas(text: string, saddr = 0): boolean {
     return screen.scrhas(this, text, saddr);
   }

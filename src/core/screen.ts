@@ -90,23 +90,6 @@ export function scrstr(tnz: Tnz, saddr = 0, eaddr = 0, rstrip?: boolean): string
 
   let str = _translateOrds(parts.join(''));
 
-  // Mask hidden (non-display) field content with asterisks
-  const chars = str.split('');
-  for (const [faddr, fattr] of tnz.fields()) {
-    if ((fattr & 0x0c) !== 0x0c) continue; // not hidden
-    const dataStart = (faddr + 1) % tnz.bufferSize;
-    const [nextFa] = tnz.nextField(dataStart);
-    const dataEnd = nextFa >= 0 ? nextFa : dataStart;
-    const fieldLen = dataEnd >= dataStart
-      ? dataEnd - dataStart
-      : tnz.bufferSize - dataStart + dataEnd;
-    for (let j = 0; j < fieldLen; j++) {
-      const pos = (dataStart + j) % tnz.bufferSize;
-      if (chars[pos] !== ' ') chars[pos] = '*';
-    }
-  }
-  str = chars.join('');
-
   if (!rstrip) {
     return str;
   }
@@ -119,6 +102,27 @@ export function scrstr(tnz: Tnz, saddr = 0, eaddr = 0, rstrip?: boolean): string
   }
   rows.push('');
   return rows.join('\n');
+}
+
+export function scrstrMasked(tnz: Tnz, saddr = 0, eaddr = 0, rstrip?: boolean): string {
+  let str = scrstr(tnz, saddr, eaddr, rstrip);
+  const chars = str.split('');
+  for (const [faddr, fattr] of bufUtil.fields(tnz)) {
+    if ((fattr & 0x0c) !== 0x0c) continue;
+    const dataStart = (faddr + 1) % tnz.bufferSize;
+    const [nextFa] = bufUtil.nextField(tnz, dataStart);
+    const dataEnd = nextFa >= 0 ? nextFa : dataStart;
+    const fieldLen = dataEnd >= dataStart
+      ? dataEnd - dataStart
+      : tnz.bufferSize - dataStart + dataEnd;
+    for (let j = 0; j < fieldLen; j++) {
+      const pos = (dataStart + j) % tnz.bufferSize;
+      if (pos < chars.length && chars[pos] !== ' ' && chars[pos] !== '\n') {
+        chars[pos] = '*';
+      }
+    }
+  }
+  return chars.join('');
 }
 
 export function scrhas(tnz: Tnz, text: string, saddr = 0): boolean {
