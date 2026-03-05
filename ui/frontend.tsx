@@ -199,19 +199,24 @@ function App() {
     
     const handleMouse = (e: MouseEvent) => {
       if (!stateRef.current.connected || stateRef.current.locked) return;
-      
+
       const screen = terminalRef.current?.querySelector('.xterm-screen');
       if (!screen) return;
-      
+
       const rect = screen.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      
+
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
-      
-      const col = Math.floor((x / rect.width) * stateRef.current.cols) + 1;
-      const row = Math.floor((y / rect.height) * stateRef.current.rows) + 1;
-      
+
+      // Use xterm's fixed grid size (always 43x80) for pixel mapping,
+      // not the 3270 session's rows which may still be 24 initially
+      const cellWidth = rect.width / term.cols;
+      const cellHeight = rect.height / term.rows;
+
+      const col = Math.min(Math.floor(x / cellWidth) + 1, stateRef.current.cols);
+      const row = Math.min(Math.floor(y / cellHeight) + 1, stateRef.current.rows);
+
       sendWs({ action: 'setCursor', row, col });
     };
 

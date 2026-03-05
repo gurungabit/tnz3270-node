@@ -211,6 +211,11 @@ button.primary:hover {
   width: fit-content;
 }
 
+/* Hide OS cursor over terminal so only the 3270 block cursor is visible */
+.xterm-screen {
+  cursor: none !important;
+}
+
 /* Make sure the xterm canvas itself doesn't have ugly white borders or outlines */
 .xterm-viewport {
   background-color: #000000 !important;
