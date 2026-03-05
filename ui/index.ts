@@ -74,7 +74,7 @@ function renderAnsiScreen(tnz: Tnz): string {
       // Base color model: derive from field attributes
       const isProtectedField = (fattr & 0x20) !== 0;
       if (isProtectedField) {
-        codes.push(isIntensified ? '97' : '32'); // white or green
+        codes.push(isIntensified ? '97' : '34'); // white or blue
       } else {
         codes.push(isIntensified ? '31' : '36'); // red or cyan
       }
@@ -156,7 +156,7 @@ Bun.serve<number>({
           if (tnz) tnz.shutdown();
           
           tnz = new Tnz('WEB', {
-            terminalType: 'IBM-3279-4-E',
+            terminalType: 'IBM-3278-4-E',
             useTn3270e: true,
             amaxRow: 43,
             onScreenUpdate: updateScreen
