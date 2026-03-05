@@ -151,15 +151,18 @@ export class Session {
 
   /** True if the screen has been updated since last check. Resets on read. */
   get screenUpdated(): boolean {
-    const val = this.ati.getTnz()!.updated;
-    this.ati.getTnz()!.updated = false;
+    const tnz = this.ati.getTnz();
+    if (!tnz) return false;
+    const val = tnz.updated;
+    tnz.updated = false;
     return val;
   }
 
   /** Wait for the screen to update. Throws on timeout. */
   async waitForScreenUpdate(timeout?: number): Promise<void> {
-    this.ati.getTnz()!.updated = false;
-    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this.ati.getTnz()!.updated);
+    const tnz = this.ati.getTnz();
+    if (tnz) tnz.updated = false;
+    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this.ati.getTnz()?.updated === true);
     if (rc === 0) throw new Error('Timeout waiting for screen update');
   }
 
