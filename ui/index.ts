@@ -61,7 +61,11 @@ function renderAnsiScreen(tnz: Tnz): string {
     const isIntensified = (fattr & 0x08) === 0x08 && !isHidden;
 
     let char = isFa ? ' ' : fullText[i];
-    if (isHidden) char = ' ';
+    if (isHidden) {
+      // Show asterisks for non-empty hidden field positions (e.g. password)
+      const dc = tnz.planeDc[i];
+      char = (!isFa && dc !== 0 && dc !== 0x40) ? '*' : ' ';
+    }
 
     const fg = tnz.planeFg[i];
     const eh = tnz.planeEh[i];

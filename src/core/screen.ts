@@ -90,6 +90,23 @@ export function scrstr(tnz: Tnz, saddr = 0, eaddr = 0, rstrip?: boolean): string
 
   let str = _translateOrds(parts.join(''));
 
+  // Mask hidden (non-display) field content with asterisks
+  const chars = str.split('');
+  for (const [faddr, fattr] of tnz.fields()) {
+    if ((fattr & 0x0c) !== 0x0c) continue; // not hidden
+    const dataStart = (faddr + 1) % tnz.bufferSize;
+    const [nextFa] = tnz.nextField(dataStart);
+    const dataEnd = nextFa >= 0 ? nextFa : dataStart;
+    const fieldLen = dataEnd >= dataStart
+      ? dataEnd - dataStart
+      : tnz.bufferSize - dataStart + dataEnd;
+    for (let j = 0; j < fieldLen; j++) {
+      const pos = (dataStart + j) % tnz.bufferSize;
+      if (chars[pos] !== ' ') chars[pos] = '*';
+    }
+  }
+  str = chars.join('');
+
   if (!rstrip) {
     return str;
   }
