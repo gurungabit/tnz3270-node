@@ -1,4 +1,5 @@
 import { Tnz } from '../src/core/tnz';
+import { Ati } from '../src/automation/ati';
 import { Session } from './session';
 // @ts-ignore
 import indexHtml from './index.html';
@@ -207,7 +208,9 @@ Bun.serve<number>({
           }
 
           const log = (msg: string) => wsSend(ws, JSON.stringify({ type: 'loginLog', message: msg }));
-          const s = new Session(tnz);
+          const ati = new Ati();
+          ati.registerSession('WEB', tnz);
+          const s = new Session(ati);
           tnz.onScreenUpdate = updateScreen;
 
           (async () => {

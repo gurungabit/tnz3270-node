@@ -1,5 +1,4 @@
 import { Ati } from '../src/automation/ati';
-import type { Tnz } from '../src/core/tnz';
 
 /**
  * High-level wrapper around Ati for UI automation.
@@ -7,13 +6,10 @@ import type { Tnz } from '../src/core/tnz';
  */
 export class Session {
   private ati: Ati;
-  private tnz: Tnz;
   private defaultTimeout: number;
 
-  constructor(tnz: Tnz, sessionName = 'WEB', defaultTimeout = 10) {
-    this.ati = new Ati();
-    this.ati.registerSession(sessionName, tnz);
-    this.tnz = tnz;
+  constructor(ati: Ati, defaultTimeout = 10) {
+    this.ati = ati;
     this.defaultTimeout = defaultTimeout;
   }
 
@@ -155,15 +151,15 @@ export class Session {
 
   /** True if the screen has been updated since last check. Resets on read. */
   get screenUpdated(): boolean {
-    const val = this.tnz.updated;
-    this.tnz.updated = false;
+    const val = this.ati.getTnz()!.updated;
+    this.ati.getTnz()!.updated = false;
     return val;
   }
 
   /** Wait for the screen to update. Throws on timeout. */
   async waitForScreenUpdate(timeout?: number): Promise<void> {
-    this.tnz.updated = false;
-    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this.tnz.updated);
+    this.ati.getTnz()!.updated = false;
+    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this.ati.getTnz()!.updated);
     if (rc === 0) throw new Error('Timeout waiting for screen update');
   }
 
