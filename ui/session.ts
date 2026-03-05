@@ -7,19 +7,14 @@ import type { Tnz } from '../src/core/tnz';
  */
 export class Session {
   private ati: Ati;
+  private tnz: Tnz;
   private defaultTimeout: number;
-  private _screenVersion = 0;
 
   constructor(tnz: Tnz, sessionName = 'WEB', defaultTimeout = 10) {
     this.ati = new Ati();
     this.ati.registerSession(sessionName, tnz);
+    this.tnz = tnz;
     this.defaultTimeout = defaultTimeout;
-
-    const prevCallback = tnz.onScreenUpdate;
-    tnz.onScreenUpdate = () => {
-      this._screenVersion++;
-      if (prevCallback) prevCallback();
-    };
   }
 
   // --- Keys ---
@@ -158,15 +153,17 @@ export class Session {
     return this.ati.keyLock;
   }
 
-  /** Increments on every screen update from the host. */
-  get screenVersion(): number {
-    return this._screenVersion;
+  /** True if the screen has been updated since last check. Resets on read. */
+  get screenUpdated(): boolean {
+    const val = this.tnz.updated;
+    this.tnz.updated = false;
+    return val;
   }
 
   /** Wait for the screen to update. Throws on timeout. */
   async waitForScreenUpdate(timeout?: number): Promise<void> {
-    const before = this._screenVersion;
-    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this._screenVersion !== before);
+    this.tnz.updated = false;
+    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this.tnz.updated);
     if (rc === 0) throw new Error('Timeout waiting for screen update');
   }
 
