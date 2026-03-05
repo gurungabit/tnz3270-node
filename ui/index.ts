@@ -78,7 +78,7 @@ function renderAnsiScreen(tnz: Tnz): string {
       // Base color model: derive from field attributes
       const isProtectedField = (fattr & 0x20) !== 0;
       if (isProtectedField) {
-        codes.push(isIntensified ? '97' : '34'); // white or blue
+        codes.push(isIntensified ? '97' : '94'); // white or bright blue
       } else {
         codes.push(isIntensified ? '97' : '36'); // white or cyan
       }
