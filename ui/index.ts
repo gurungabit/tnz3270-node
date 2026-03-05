@@ -156,7 +156,7 @@ Bun.serve<number>({
           if (tnz) tnz.shutdown();
           
           tnz = new Tnz('WEB', {
-            terminalType: 'IBM-3278-4-E',
+            terminalType: 'IBM-3279-4-E',
             useTn3270e: true,
             amaxRow: 43,
             onScreenUpdate: updateScreen
