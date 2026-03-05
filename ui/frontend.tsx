@@ -20,6 +20,7 @@ function App() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [host, setHost] = useState('127.0.0.1');
   const [port, setPort] = useState('3270');
+  const [ssl, setSsl] = useState(false);
   const [loginRunning, setLoginRunning] = useState(false);
   const [loginLogs, setLoginLogs] = useState<string[]>([]);
 
@@ -240,7 +241,7 @@ function App() {
     if (connected) {
       wsRef.current?.send(JSON.stringify({ action: 'disconnect' }));
     } else {
-      wsRef.current?.send(JSON.stringify({ action: 'connect', host, port: parseInt(port) }));
+      wsRef.current?.send(JSON.stringify({ action: 'connect', host, port: parseInt(port), secure: ssl }));
     }
   };
 
@@ -274,8 +275,18 @@ function App() {
             style={{width: '80px'}}
             disabled={connected}
           />
-          <button 
-            className={connected ? '' : 'primary'} 
+          <label style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#888', fontSize: '0.8rem', cursor: 'pointer'}}>
+            <input
+              type="checkbox"
+              checked={ssl}
+              onChange={e => setSsl(e.target.checked)}
+              disabled={connected}
+              style={{accentColor: '#4af626'}}
+            />
+            SSL
+          </label>
+          <button
+            className={connected ? '' : 'primary'}
             onClick={handleConnect}
           >
             {connected ? 'Disconnect' : 'Connect'}

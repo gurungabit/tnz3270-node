@@ -122,7 +122,7 @@ Bun.serve<number>({
           });
 
           connections.set(sessionId, tnz);
-          await tnz.connect(payload.host, payload.port || 3270);
+          await tnz.connect(payload.host, payload.port || 3270, { secure: payload.secure });
           wsSend(ws, JSON.stringify({ type: 'connected' }));
           updateScreen();
           return;
