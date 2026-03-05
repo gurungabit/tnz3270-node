@@ -8,11 +8,18 @@ import type { Tnz } from '../src/core/tnz';
 export class Session {
   private ati: Ati;
   private defaultTimeout: number;
+  private _screenVersion = 0;
 
   constructor(tnz: Tnz, sessionName = 'WEB', defaultTimeout = 10) {
     this.ati = new Ati();
     this.ati.registerSession(sessionName, tnz);
     this.defaultTimeout = defaultTimeout;
+
+    const prevCallback = tnz.onScreenUpdate;
+    tnz.onScreenUpdate = () => {
+      this._screenVersion++;
+      if (prevCallback) prevCallback();
+    };
   }
 
   // --- Keys ---
@@ -149,6 +156,18 @@ export class Session {
   /** Check if keyboard is locked. */
   get isLocked(): boolean {
     return this.ati.keyLock;
+  }
+
+  /** Increments on every screen update from the host. */
+  get screenVersion(): number {
+    return this._screenVersion;
+  }
+
+  /** Wait for the screen to update. Throws on timeout. */
+  async waitForScreenUpdate(timeout?: number): Promise<void> {
+    const before = this._screenVersion;
+    const rc = await this.ati.wait(timeout ?? this.defaultTimeout, () => this._screenVersion !== before);
+    if (rc === 0) throw new Error('Timeout waiting for screen update');
   }
 
   /** Current cursor position as [row, col] (1-based). */
