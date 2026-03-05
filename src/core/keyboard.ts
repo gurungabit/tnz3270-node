@@ -44,6 +44,19 @@ export function keyAid(tnz: Tnz, aid: number): void {
 
 export function enter(tnz: Tnz, text?: string): void {
   if (text) keyData(tnz, text);
+
+  // In SSCP-LU mode, send the input line as SSCP-LU-DATA
+  if (tnz.sscpLuMode) {
+    // Read the current cursor row's text
+    const row = Math.floor(tnz.curadd / tnz.maxCol);
+    const rowStart = row * tnz.maxCol;
+    const rowText = tnz.scrstr(rowStart, rowStart + tnz.maxCol, false).trimEnd();
+    tnz.systemLockWait = true;
+    tnz.pwait = true;
+    tnz.sendSscpLuData(rowText);
+    return;
+  }
+
   keyAid(tnz, AID.ENTER);
 }
 

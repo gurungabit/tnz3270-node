@@ -96,6 +96,8 @@ export class Tnz extends EventEmitter {
   inop = 0x06; // right initialization (RM)
   /** Input partition ID */
   inpid = 0;
+  /** Whether we're in SSCP-LU (unformatted VTAM) mode */
+  sscpLuMode = false;
 
   /** Whether the terminal claims color capability */
   capableColor = false;
@@ -1115,7 +1117,8 @@ export class Tnz extends EventEmitter {
       seqNumber = (header[3] << 8) | header[4];
 
       if (dataType === 0) {
-        // 3270-DATA — continue processing
+        // 3270-DATA — exit SSCP-LU mode and continue processing
+        this.sscpLuMode = false;
       } else if (dataType === 1) {
         throw new TnzError('DATA-TYPE SCS-DATA not implemented');
       } else if (dataType === 2) {
@@ -1129,7 +1132,9 @@ export class Tnz extends EventEmitter {
       } else if (dataType === 6) {
         throw new TnzError('DATA-TYPE REQUEST not implemented');
       } else if (dataType === 7) {
-        throw new TnzError('DATA-TYPE SSCP-LU-DATA not implemented');
+        // SSCP-LU-DATA: unformatted EBCDIC text (VTAM logon screen)
+        this._processSscpLuData(data);
+        return;
       } else {
         throw new TnzError(`DATA-TYPE ${dataType} not implemented`);
       }
@@ -1153,6 +1158,54 @@ export class Tnz extends EventEmitter {
       ]);
       this.sendRec(rsp);
     }
+  }
+
+  /**
+   * Process SSCP-LU-DATA: unformatted EBCDIC text from VTAM.
+   * Displays as plain text on an unformatted screen.
+   */
+  private _processSscpLuData(data: Buffer): void {
+    this.sscpLuMode = true;
+
+    // Clear screen and reset to unformatted mode
+    this.eraseReset(false);
+
+    // Write raw EBCDIC bytes into the display buffer
+    let addr = 0;
+    for (let i = 0; i < data.length && addr < this.bufferSize; i++) {
+      const eb = data[i];
+      if (eb === 0x15 || eb === 0x25) {
+        // EBCDIC NL (0x15) or LF (0x25) — move to next row
+        addr = (Math.floor(addr / this.maxCol) + 1) * this.maxCol;
+        continue;
+      }
+      if (eb === 0x0d) continue; // EBCDIC CR — skip
+      if (eb === 0x00) continue; // null — skip
+      this.planeDc[addr] = eb;
+      addr++;
+    }
+    this.curadd = addr < this.bufferSize ? addr : 0;
+
+    this._restoreKeyboard();
+    this.updated = true;
+
+    if (this.onScreenUpdate) {
+      this.onScreenUpdate();
+    }
+  }
+
+  /**
+   * Send SSCP-LU-DATA back to the host (user input in unformatted mode).
+   */
+  sendSscpLuData(text: string): void {
+    const ebcdic = this._codec.encode(text);
+    const header = Buffer.from([
+      0x07, // DATA-TYPE: SSCP-LU-DATA
+      0x00, // REQUEST-FLAG
+      0x00, // RESPONSE-FLAG
+      0x00, 0x00, // SEQ-NUMBER
+    ]);
+    this.sendRec(Buffer.concat([header, ebcdic]));
   }
 
   /**
