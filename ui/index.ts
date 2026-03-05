@@ -130,10 +130,10 @@ Bun.serve<number>({
 
         if (payload.action === 'disconnect') {
           if (tnz) {
-            tnz.shutdown();
+            try { tnz.shutdown(); } catch {}
             connections.delete(sessionId);
-            wsSend(ws, JSON.stringify({ type: 'disconnected' }));
           }
+          wsSend(ws, JSON.stringify({ type: 'disconnected' }));
           return;
         }
 

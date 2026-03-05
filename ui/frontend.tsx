@@ -148,8 +148,13 @@ function App() {
         ev.preventDefault();
       }
 
-      // Ctrl+V paste — let it through to the paste handler
+      // Ctrl+V / Cmd+V paste
       if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') {
+        if (!stateRef.current.locked) {
+          navigator.clipboard.readText().then(text => {
+            if (text) sendWs({ action: 'type', text });
+          });
+        }
         return;
       }
 
@@ -203,16 +208,6 @@ function App() {
       }
     });
 
-    // Handle paste
-    const handlePaste = (e: ClipboardEvent) => {
-      if (!stateRef.current.connected || stateRef.current.locked) return;
-      const text = e.clipboardData?.getData('text');
-      if (text) {
-        sendWs({ action: 'type', text });
-      }
-    };
-    document.addEventListener('paste', handlePaste);
-
     const handleMouse = (e: MouseEvent) => {
       if (!stateRef.current.connected || stateRef.current.locked) return;
 
@@ -243,7 +238,6 @@ function App() {
     }, 100);
 
     return () => {
-      document.removeEventListener('paste', handlePaste);
       if (term.element) {
         term.element.removeEventListener('mousedown', handleMouse);
       }
