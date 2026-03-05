@@ -136,15 +136,15 @@ function App() {
       }
     };
 
-    // Let Ctrl+V/Cmd+V through to browser so native paste event fires
+    // Let Ctrl+V/Cmd+V and Ctrl+C/Cmd+C through to browser
     term.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
-      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') return false;
+      if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'v' || ev.key === 'c')) return false;
       return true;
     });
 
-    // Handle native paste event
-    term.textarea?.addEventListener('paste', (e: Event) => {
-      const text = (e as ClipboardEvent).clipboardData?.getData('text');
+    // Handle paste from any source (Ctrl+V, Cmd+V, right-click paste)
+    document.addEventListener('paste', (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData('text');
       if (text && stateRef.current.connected && !stateRef.current.locked) {
         sendWs({ action: 'type', text });
       }
