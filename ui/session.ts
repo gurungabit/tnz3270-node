@@ -107,16 +107,19 @@ export class Session {
 
   /** Get text at a specific position. */
   getTextAt(row: number, col: number, length: number): string {
+    if (row < 1 || row > this.rows || col < 1 || col > this.cols || length < 1) return '';
     return this.ati.extract(length, row, col);
   }
 
   /** Get text from position to end of row. */
   getTextToEol(row: number, col: number): string {
+    if (row < 1 || row > this.rows || col < 1 || col > this.cols) return '';
     return this.ati.extract(this.cols - col + 1, row, col);
   }
 
   /** Get an entire row's text (1-based). */
   getRow(row: number): string {
+    if (row < 1 || row > this.rows) return '';
     return this.ati.extract(this.cols, row, 1);
   }
 
