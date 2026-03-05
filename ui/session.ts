@@ -151,6 +151,11 @@ export class Session {
     return this.ati.keyLock;
   }
 
+  /** Current cursor position as [row, col] (1-based). */
+  get cursorPos(): [number, number] {
+    return [this.ati.curRow, this.ati.curCol];
+  }
+
   /** Current cursor row (1-based). */
   get cursorRow(): number {
     return this.ati.curRow;
