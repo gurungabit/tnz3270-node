@@ -140,12 +140,12 @@ export class Session {
 
   /** Current cursor row (1-based). */
   get cursorRow(): number {
-    return this.ati.cursorRow;
+    return this.ati.curRow;
   }
 
   /** Current cursor column (1-based). */
   get cursorCol(): number {
-    return this.ati.cursorCol;
+    return this.ati.curCol;
   }
 
   /** Screen rows. */
