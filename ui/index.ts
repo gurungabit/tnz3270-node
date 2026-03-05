@@ -1,4 +1,5 @@
 import { Tnz } from '../src/core/tnz';
+import { Ati } from '../src/automation/ati';
 // @ts-ignore
 import indexHtml from './index.html';
 
@@ -146,6 +147,84 @@ Bun.serve<number>({
           } catch (e) {
             // ignore out of bounds
           }
+          return;
+        }
+
+        if (payload.action === 'runLogin') {
+          if (!tnz) {
+            wsSend(ws, JSON.stringify({ type: 'error', message: 'Not connected' }));
+            return;
+          }
+
+          const log = (msg: string) => wsSend(ws, JSON.stringify({ type: 'loginLog', message: msg }));
+          const ati = new Ati();
+          ati.registerSession('WEB', tnz);
+
+          // Restore the onScreenUpdate so the UI keeps refreshing
+          const origUpdate = updateScreen;
+          tnz.onScreenUpdate = origUpdate;
+
+          (async () => {
+            try {
+              log('Waiting for initial screen...');
+              await ati.wait(5, () => ati.scrhas('Hercules Version') || ati.scrhas('Logon ===>'));
+              origUpdate();
+
+              if (ati.scrhas('Hercules Version')) {
+                log('Clearing Hercules splash...');
+                await ati.send('[enter]');
+                await ati.wait(30, () => !ati.scrhas('Hercules Version'));
+                origUpdate();
+              }
+
+              log('Waiting for Logon prompt...');
+              let rc = await ati.wait(30, () => ati.scrhas('Logon ===>'));
+              if (rc === 0) throw new Error('Timeout waiting for Logon prompt');
+              origUpdate();
+
+              log('Logging in as HERC01...');
+              await ati.send('[clear]');
+              await ati.wait(2, () => !ati.keyLock);
+              await ati.send('L HERC01[enter]');
+
+              rc = await ati.wait(10, () => ati.scrhas('PASSWORD'));
+              if (rc === 0) throw new Error('Timeout waiting for password prompt');
+              origUpdate();
+
+              log('Entering password...');
+              await ati.send('CUL8TR[enter]');
+
+              rc = await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
+              if (rc === 0) throw new Error('Timeout waiting for Welcome banner');
+              origUpdate();
+
+              log('Clearing welcome prompts...');
+              await ati.send('[enter]');
+              await ati.wait(5, () => ati.scrhas('***'));
+              await ati.send('[enter]');
+
+              rc = await ati.wait(10, () => ati.scrhas('Option ===>'));
+              if (rc === 0) throw new Error('Timeout waiting for ISPF menu');
+              origUpdate();
+              log('Login complete - at ISPF Main Menu');
+
+              log('Logging out...');
+              await ati.send('X[enter]');
+              await ati.wait(10, () => ati.scrhas('READY'));
+              origUpdate();
+
+              await ati.send('LOGOFF[enter]');
+              await ati.wait(10, () => ati.scrhas('Logon ===>'));
+              origUpdate();
+
+              log('SUCCESS: Login/logout cycle complete');
+              wsSend(ws, JSON.stringify({ type: 'loginDone', success: true }));
+            } catch (err) {
+              log('FAILED: ' + String(err));
+              origUpdate();
+              wsSend(ws, JSON.stringify({ type: 'loginDone', success: false, error: String(err) }));
+            }
+          })();
           return;
         }
 

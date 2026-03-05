@@ -20,6 +20,8 @@ function App() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [host, setHost] = useState('127.0.0.1');
   const [port, setPort] = useState('3270');
+  const [loginRunning, setLoginRunning] = useState(false);
+  const [loginLogs, setLoginLogs] = useState<string[]>([]);
 
   useEffect(() => {
     // Initialize xterm
@@ -93,6 +95,11 @@ function App() {
         const cRow = Math.floor(cursor / cols) + 1;
         const cCol = (cursor % cols) + 1;
         setCursorPos({ row: cRow, col: cCol });
+        } else if (msg.type === 'loginLog') {
+          setLoginLogs(prev => [...prev, msg.message]);
+        } else if (msg.type === 'loginDone') {
+          setLoginRunning(false);
+          setLoginLogs(prev => [...prev, msg.success ? 'Done.' : 'Failed: ' + msg.error]);
         } else if (msg.type === 'error') {
           setErrorMsg(msg.message);
           setTimeout(() => setErrorMsg(null), 5000);
@@ -232,6 +239,13 @@ function App() {
     }
   };
 
+  const handleRunLogin = () => {
+    if (!connected || loginRunning) return;
+    setLoginLogs([]);
+    setLoginRunning(true);
+    wsRef.current?.send(JSON.stringify({ action: 'runLogin' }));
+  };
+
   const sendKey = (val: string) => {
     wsRef.current?.send(JSON.stringify({ action: 'key', val }));
     xtermRef.current?.focus();
@@ -304,6 +318,36 @@ function App() {
                 <button onClick={() => sendKey('pa3')}>PA3</button>
               </div>
             </div>
+          </div>
+
+          <div className="sidebar-section">
+            <h3>Automation</h3>
+            <button
+              className="primary"
+              style={{width: '100%', padding: '8px', fontSize: '13px'}}
+              onClick={handleRunLogin}
+              disabled={!connected || loginRunning}
+            >
+              {loginRunning ? 'Running...' : 'Run Login'}
+            </button>
+            {loginLogs.length > 0 && (
+              <div style={{
+                marginTop: '8px',
+                padding: '6px 8px',
+                background: '#111',
+                border: '1px solid #333',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                maxHeight: '120px',
+                overflowY: 'auto',
+                color: '#4af626',
+              }}>
+                {loginLogs.map((log, i) => (
+                  <div key={i}>{log}</div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="sidebar-section">
