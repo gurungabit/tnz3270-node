@@ -76,7 +76,7 @@ function renderAnsiScreen(tnz: Tnz): string {
       if (isProtectedField) {
         codes.push(isIntensified ? '97' : '34'); // white or blue
       } else {
-        codes.push(isIntensified ? '31' : '36'); // red or cyan
+        codes.push(isIntensified ? '97' : '36'); // white or cyan
       }
     }
 
