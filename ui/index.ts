@@ -68,9 +68,17 @@ function renderAnsiScreen(tnz: Tnz): string {
 
     let codes = [];
     if (isIntensified) codes.push('1');
-    if (fg && colorMap[fg]) codes.push(colorMap[fg]);
-    else if (isIntensified) codes.push('97');
-    else codes.push('32');
+    if (fg && colorMap[fg]) {
+      codes.push(colorMap[fg]);
+    } else {
+      // Base color model: derive from field attributes
+      const isProtectedField = (fattr & 0x20) !== 0;
+      if (isProtectedField) {
+        codes.push(isIntensified ? '97' : '32'); // white or green
+      } else {
+        codes.push(isIntensified ? '31' : '36'); // red or cyan
+      }
+    }
 
     if (eh === 0xf1) codes.push('5');
     if (eh === 0xf2) codes.push('7');
