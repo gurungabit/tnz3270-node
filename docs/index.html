@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>tnz3270-node — TypeScript TN3270 Mainframe Automation</title>
+  <meta name="description" content="Zero-dependency TypeScript library for IBM mainframe TN3270 terminal automation, screen scraping, headless scripting, and IND$FILE transfers.">
+  <meta name="keywords" content="tn3270, 3270, mainframe, ibm, typescript, node.js, terminal emulator, automation, screen scraping, z/os, mvs, ind$file">
+  <meta property="og:title" content="tnz3270-node — TypeScript TN3270 Mainframe Automation">
+  <meta property="og:description" content="Zero-dependency TypeScript library for IBM mainframe TN3270 terminal automation, screen scraping, and IND$FILE transfers.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://gurungabit.github.io/tnz3270-node/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --border: #222;
+      --green: #4af626;
+      --green-dim: #2a8a15;
+      --amber: #ffb000;
+      --text: #ccc;
+      --text-dim: #777;
+      --mono: 'IBM Plex Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ---- NAV ---- */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { color: var(--green); font-weight: 700; font-size: 1rem; letter-spacing: 2px; }
+    .nav-links { display: flex; gap: 24px; font-size: 0.8rem; }
+    .nav-links a { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .nav-links a:hover { color: var(--green); text-decoration: none; }
+
+    /* ---- HERO ---- */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(74,246,38,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--green); }
+    .hero p {
+      font-size: clamp(0.85rem, 1.5vw, 1.05rem);
+      color: var(--text-dim);
+      max-width: 600px;
+      margin-bottom: 40px;
+    }
+    .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      display: inline-block;
+      padding: 12px 28px;
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: var(--green); color: #000; border-color: var(--green); }
+    .btn-primary:hover { background: #3dd21d; text-decoration: none; }
+    .btn-secondary { background: transparent; color: var(--text); }
+    .btn-secondary:hover { border-color: var(--green); color: var(--green); text-decoration: none; }
+
+    .install-hint {
+      margin-top: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 14px 28px;
+      font-size: 0.9rem;
+      color: var(--green);
+      letter-spacing: 1px;
+      user-select: all;
+    }
+    .install-hint span { color: var(--text-dim); }
+
+    /* ---- FEATURES ---- */
+    section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
+    section h2 {
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 48px;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: var(--green-dim); }
+    .feature-card h3 {
+      color: var(--green);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .feature-card p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.7; }
+
+    /* ---- CODE ---- */
+    .code-section { max-width: 760px; }
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      color: var(--text);
+    }
+    .code-block .kw { color: #c792ea; }
+    .code-block .fn { color: #82aaff; }
+    .code-block .str { color: #c3e88d; }
+    .code-block .cm { color: #546e7a; }
+    .code-block .num { color: var(--amber); }
+
+    /* ---- TERMINAL DEMO ---- */
+    .terminal-demo {
+      background: #000;
+      border: 1px solid #333;
+      padding: 20px;
+      margin-top: 48px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 0 60px rgba(74,246,38,0.04);
+    }
+    .terminal-bar {
+      display: flex; gap: 6px; margin-bottom: 16px;
+    }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.r { background: #ff5f56; }
+    .terminal-dot.y { background: #ffbd2e; }
+    .terminal-dot.g { background: #27c93f; }
+    .terminal-output {
+      color: var(--green);
+      font-size: 0.78rem;
+      line-height: 1.8;
+      white-space: pre;
+    }
+    .terminal-output .dim { color: var(--text-dim); }
+
+    /* ---- FOOTER ---- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 16px; }
+      section { padding: 60px 16px; }
+      .features-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">TNZ3270-NODE</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="https://github.com/gurungabit/tnz3270-node">GitHub</a>
+    <a href="https://www.npmjs.com/package/tnz3270-node">npm</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1><span>TN3270</span> Automation for Node.js</h1>
+  <p>Zero-dependency TypeScript library for IBM mainframe terminal automation, screen scraping, headless scripting, and IND$FILE file transfers.</p>
+  <div class="hero-buttons">
+    <a href="https://github.com/gurungabit/tnz3270-node" class="btn btn-primary">View on GitHub</a>
+    <a href="#quickstart" class="btn btn-secondary">Get Started</a>
+  </div>
+  <div class="install-hint"><span>$</span> npm install tnz3270-node</div>
+
+  <div class="terminal-demo">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-output"><span class="dim">$</span> bun run test-login.ts
+Connecting to TK4- mainframe (127.0.0.1:3270)...
+Waiting for Logon prompt...
+Logging in as HERC01...
+Entering password...
+<span class="dim">=============================================================</span>
+<span class="dim">[ SCREEN STATE ] Login Complete - At ISPF Main Menu!</span>
+<span class="dim">=============================================================</span>
+Logging out...
+<span style="color:#27c93f">Automation script completed successfully.</span></div>
+  </div>
+</div>
+
+<section id="features">
+  <h2>Features</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <h3>Full 3270 Protocol</h3>
+      <p>Complete TN3270/TN3270E implementation — Write, Erase/Write, Read Buffer, Read Modified, WSF, and structured fields.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Zero Dependencies</h3>
+      <p>Built entirely on Node.js built-ins (net, tls, events). No native modules, no bloat. Works with Node.js, Bun, and Deno.</p>
+    </div>
+    <div class="feature-card">
+      <h3>ATI Automation Engine</h3>
+      <p>High-level scripting API — send keystrokes, wait for screen conditions, extract data, and trigger conditional actions with the WHEN system.</p>
+    </div>
+    <div class="feature-card">
+      <h3>IND$FILE Transfers</h3>
+      <p>Native DDM IND$FILE protocol for uploading and downloading datasets and PDS members between your machine and the mainframe.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Concurrent Sessions</h3>
+      <p>Event-driven socket architecture lets you run hundreds of mainframe sessions simultaneously without blocking the event loop.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Screen Scraping</h3>
+      <p>Full EBCDIC/ASCII character-set awareness, field attribute parsing, color/highlight extraction, and password field cloaking.</p>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart" class="code-section">
+  <h2>Quick Start</h2>
+  <div class="code-block"><span class="kw">import</span> { Ati } <span class="kw">from</span> <span class="str">'tnz3270-node'</span>;
+
+<span class="kw">const</span> ati = <span class="kw">new</span> <span class="fn">Ati</span>();
+
+<span class="cm">// Connect to the mainframe</span>
+<span class="kw">await</span> ati.<span class="fn">connectSession</span>(<span class="str">'MVS'</span>, {
+  host: <span class="str">'127.0.0.1'</span>,
+  port: <span class="num">3270</span>,
+  useTn3270e: <span class="kw">true</span>,
+});
+
+<span class="cm">// Wait for the logon screen</span>
+<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () => ati.<span class="fn">scrhas</span>(<span class="str">'Logon ===>'</span>));
+
+<span class="cm">// Log in</span>
+<span class="kw">await</span> ati.<span class="fn">send</span>(<span class="str">'L HERC01[enter]'</span>);
+<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () => ati.<span class="fn">scrhas</span>(<span class="str">'PASSWORD'</span>));
+<span class="kw">await</span> ati.<span class="fn">send</span>(<span class="str">'CUL8TR[enter]'</span>);
+
+<span class="cm">// Transfer a file</span>
+<span class="kw">await</span> ati.<span class="fn">getFile</span>(<span class="str">'sys1.proclib(test) ascii crlf'</span>, <span class="str">'./local.txt'</span>);
+
+ati.<span class="fn">dropSession</span>();</div>
+</section>
+
+<footer>
+  <p>MIT License &middot; <a href="https://github.com/gurungabit/tnz3270-node">gurungabit/tnz3270-node</a></p>
+</footer>
+
+</body>
+</html>
