@@ -35,9 +35,10 @@ function renderAnsiScreen(tnz: Tnz): string {
     else if (isIntensified) codes.push('97');
     else codes.push('32');
     
+    const isProtected = (fattr & 0x20) !== 0;
     if (eh === 0xf1) codes.push('5');
     if (eh === 0xf2) codes.push('7');
-    if (eh === 0xf4 && char !== ' ') codes.push('4');
+    if (eh === 0xf4 && (char !== ' ' || !isProtected)) codes.push('4');
     
     const format = codes.length > 0 ? `\x1B[${codes.join(';')}m` : '\x1B[0m';
     out += `${format}${char}`;

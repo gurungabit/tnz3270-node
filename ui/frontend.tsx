@@ -136,6 +136,20 @@ function App() {
       }
     };
 
+    // Let Ctrl+V/Cmd+V through to browser so native paste event fires
+    term.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') return false;
+      return true;
+    });
+
+    // Handle native paste event
+    term.textarea?.addEventListener('paste', (e: Event) => {
+      const text = (e as ClipboardEvent).clipboardData?.getData('text');
+      if (text && stateRef.current.connected && !stateRef.current.locked) {
+        sendWs({ action: 'type', text });
+      }
+    });
+
     // Handle user typing
     term.onKey(({ key, domEvent }) => {
       if (!stateRef.current.connected) return;
@@ -146,16 +160,6 @@ function App() {
       if (ev.key === 'Tab' || ev.key === 'Backspace' || ev.key === 'Enter'
         || ev.key.startsWith('Arrow') || ev.key.startsWith('F')) {
         ev.preventDefault();
-      }
-
-      // Ctrl+V / Cmd+V paste
-      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') {
-        if (!stateRef.current.locked) {
-          navigator.clipboard.readText().then(text => {
-            if (text) sendWs({ action: 'type', text });
-          });
-        }
-        return;
       }
 
       // Allow reset even when locked (Ctrl+R or Escape while locked)
