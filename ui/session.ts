@@ -128,6 +128,19 @@ export class Session {
     return this.ati.getTnz()?.scrstr() ?? '';
   }
 
+  /** Get the full screen text with line numbers. */
+  get screenTextNumbered(): string {
+    const tnz = this.ati.getTnz();
+    if (!tnz) return '';
+    const raw = tnz.scrstr(0, 0, false);
+    const lines: string[] = [];
+    for (let i = 0; i < raw.length; i += this.cols) {
+      const row = (i / this.cols) + 1;
+      lines.push(`${String(row).padStart(2, '0')}| ${raw.slice(i, i + this.cols).trimEnd()}`);
+    }
+    return lines.join('\n');
+  }
+
   /** Get screen text with passwords masked. */
   get screenTextMasked(): string {
     return this.ati.getTnz()?.scrstrMasked() ?? '';
