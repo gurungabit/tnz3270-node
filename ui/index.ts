@@ -102,7 +102,7 @@ function renderAnsiScreen(tnz: Tnz): string {
   return out;
 }
 
-const connections = new Map<string, Tnz>();
+const connections = new Map<string, { tnz: Tnz; ati: Ati }>();
 
 /** Whitelist of Tnz methods callable via the WebSocket 'key' action. */
 const ALLOWED_KEYS = new Set([
@@ -143,7 +143,8 @@ Bun.serve<number>({
       try {
         const payload = JSON.parse(String(message));
         const sessionId = ws.remoteAddress + ':' + ws.data;
-        let tnz = connections.get(sessionId);
+        let conn = connections.get(sessionId);
+        let tnz = conn?.tnz;
 
         const updateScreen = () => {
           if (!tnz) return;
@@ -159,20 +160,24 @@ Bun.serve<number>({
 
         if (payload.action === 'connect') {
           if (tnz) tnz.shutdown();
-          
+
           tnz = new Tnz('WEB', {
             terminalType: 'IBM-3278-4-E',
             useTn3270e: true,
             amaxRow: 43,
             onScreenUpdate: updateScreen
           });
-          
+
+          const ati = new Ati();
+          ati.registerSession('WEB', tnz);
+
           tnz.on('close', () => {
             wsSend(ws, JSON.stringify({ type: 'disconnected' }));
             connections.delete(sessionId);
           });
 
-          connections.set(sessionId, tnz);
+          conn = { tnz, ati };
+          connections.set(sessionId, conn);
           await tnz.connect(payload.host, payload.port || 3270, { secure: payload.secure, verifyCert: payload.verifyCert });
           wsSend(ws, JSON.stringify({ type: 'connected' }));
           updateScreen();
@@ -208,9 +213,7 @@ Bun.serve<number>({
           }
 
           const log = (msg: string) => wsSend(ws, JSON.stringify({ type: 'loginLog', message: msg }));
-          const ati = new Ati();
-          ati.registerSession('WEB', tnz);
-          const s = new Session(ati);
+          const s = new Session(conn!.ati);
           tnz.onScreenUpdate = updateScreen;
 
           (async () => {
@@ -301,9 +304,9 @@ Bun.serve<number>({
     close(ws) {
       console.log('WS Client disconnected');
       const sessionId = ws.remoteAddress + ':' + ws.data;
-      const tnz = connections.get(sessionId);
-      if (tnz) {
-        tnz.shutdown();
+      const conn = connections.get(sessionId);
+      if (conn) {
+        conn.tnz.shutdown();
         connections.delete(sessionId);
       }
     }
