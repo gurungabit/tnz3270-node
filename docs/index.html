@@ -275,7 +275,7 @@ Logging out...
 
 <section id="quickstart" class="code-section">
   <h2>Quick Start</h2>
-  <div class="code-block"><span class="kw">import</span> { Ati } <span class="kw">from</span> <span class="str">'tnz3270-node'</span>;
+  <pre class="code-block"><code><span class="kw">import</span> { Ati } <span class="kw">from</span> <span class="str">'tnz3270-node'</span>;
 
 <span class="kw">const</span> ati = <span class="kw">new</span> <span class="fn">Ati</span>();
 
@@ -287,17 +287,17 @@ Logging out...
 });
 
 <span class="cm">// Wait for the logon screen</span>
-<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () => ati.<span class="fn">scrhas</span>(<span class="str">'Logon ===>'</span>));
+<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () =&gt; ati.<span class="fn">scrhas</span>(<span class="str">'Logon ===&gt;'</span>));
 
 <span class="cm">// Log in</span>
 <span class="kw">await</span> ati.<span class="fn">send</span>(<span class="str">'L HERC01[enter]'</span>);
-<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () => ati.<span class="fn">scrhas</span>(<span class="str">'PASSWORD'</span>));
+<span class="kw">await</span> ati.<span class="fn">wait</span>(<span class="num">10</span>, () =&gt; ati.<span class="fn">scrhas</span>(<span class="str">'PASSWORD'</span>));
 <span class="kw">await</span> ati.<span class="fn">send</span>(<span class="str">'CUL8TR[enter]'</span>);
 
 <span class="cm">// Transfer a file</span>
 <span class="kw">await</span> ati.<span class="fn">getFile</span>(<span class="str">'sys1.proclib(test) ascii crlf'</span>, <span class="str">'./local.txt'</span>);
 
-ati.<span class="fn">dropSession</span>();</div>
+ati.<span class="fn">dropSession</span>();</code></pre>
 </section>
 
 <footer>
