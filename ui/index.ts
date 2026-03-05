@@ -11,41 +11,77 @@ const colorMap: Record<number, string> = {
   0xfd: '96', 0xfe: '37', 0xff: '97',
 };
 
+const MIN_FIELD_UNDERLINE = 6;
+
 function renderAnsiScreen(tnz: Tnz): string {
   let out = '\x1B[H';
   const fullText = tnz.scrstr(0, 0, false);
-  
-  for (let i = 0; i < tnz.bufferSize; i++) {
+  const bufSize = tnz.bufferSize;
+
+  // Pre-compute underline mask: for each unprotected field, underline
+  // from field start to lastNonSpace+1 (minimum MIN_FIELD_UNDERLINE chars)
+  const underline = new Uint8Array(bufSize);
+  for (const [faddr, fattr] of tnz.fields()) {
+    const isProtected = (fattr & 0x20) !== 0;
+    const isHidden = (fattr & 0x0c) === 0x0c;
+    if (isProtected || isHidden) continue;
+
+    const dataStart = (faddr + 1) % bufSize;
+    const [nextFa] = tnz.nextField(dataStart);
+    const dataEnd = nextFa >= 0 ? nextFa : dataStart;
+
+    // Compute field length
+    const fieldLen = dataEnd >= dataStart
+      ? dataEnd - dataStart
+      : bufSize - dataStart + dataEnd;
+    if (fieldLen === 0) continue;
+
+    // Find last non-space position in field
+    let lastContent = -1;
+    for (let j = 0; j < fieldLen; j++) {
+      const pos = (dataStart + j) % bufSize;
+      if (fullText[pos] !== ' ') lastContent = j;
+    }
+
+    const underlineEnd = Math.min(
+      Math.max(lastContent + 2, MIN_FIELD_UNDERLINE),
+      fieldLen
+    );
+    for (let j = 0; j < underlineEnd; j++) {
+      underline[(dataStart + j) % bufSize] = 1;
+    }
+  }
+
+  for (let i = 0; i < bufSize; i++) {
     if (i > 0 && i % tnz.maxCol === 0) out += '\x1B[0m\r\n';
 
     const isFa = tnz.planeFa[i] !== 0;
     const [_, fattr] = tnz._field(i);
     const isHidden = (fattr & 0x0c) === 0x0c;
     const isIntensified = (fattr & 0x08) === 0x08 && !isHidden;
-    
+
     let char = isFa ? ' ' : fullText[i];
     if (isHidden) char = ' ';
-    
+
     const fg = tnz.planeFg[i];
     const eh = tnz.planeEh[i];
-    
+
     let codes = [];
     if (isIntensified) codes.push('1');
     if (fg && colorMap[fg]) codes.push(colorMap[fg]);
     else if (isIntensified) codes.push('97');
     else codes.push('32');
-    
-    const isUnprotected = !isFa && (fattr & 0x20) === 0;
+
     if (eh === 0xf1) codes.push('5');
     if (eh === 0xf2) codes.push('7');
-    if (eh === 0xf4) codes.push('4');
-    else if (isUnprotected && !isHidden) codes.push('4');
-    
+    if (underline[i]) codes.push('4');
+    else if (eh === 0xf4 && char !== ' ') codes.push('4');
+
     const format = codes.length > 0 ? `\x1B[${codes.join(';')}m` : '\x1B[0m';
     out += `${format}${char}`;
   }
   out += '\x1B[0m';
-  
+
   const curRow = Math.floor(tnz.curadd / tnz.maxCol) + 1;
   const curCol = (tnz.curadd % tnz.maxCol) + 1;
   out += `\x1B[${curRow};${curCol}H`;

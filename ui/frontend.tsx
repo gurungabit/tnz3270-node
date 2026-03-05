@@ -136,18 +136,20 @@ function App() {
       }
     };
 
-    // Let Ctrl+V/Cmd+V and Ctrl+C/Cmd+C through to browser
+    // Allow Ctrl+C/Cmd+C for copy, handle Ctrl+V/Cmd+V paste via clipboard API
     term.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
-      if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'v' || ev.key === 'c')) return false;
-      return true;
-    });
-
-    // Handle paste from any source (Ctrl+V, Cmd+V, right-click paste)
-    document.addEventListener('paste', (e: ClipboardEvent) => {
-      const text = e.clipboardData?.getData('text');
-      if (text && stateRef.current.connected && !stateRef.current.locked) {
-        sendWs({ action: 'type', text });
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'c') return false;
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') {
+        if (ev.type === 'keydown') {
+          navigator.clipboard.readText().then(text => {
+            if (text && stateRef.current.connected && !stateRef.current.locked) {
+              sendWs({ action: 'type', text });
+            }
+          }).catch(() => {});
+        }
+        return false;
       }
+      return true;
     });
 
     // Handle user typing

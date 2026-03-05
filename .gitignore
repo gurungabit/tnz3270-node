@@ -31,3 +31,6 @@ coverage
 .env.local
 *.tgz
 publishing-instructions.md
+
+# opensrc - source code for packages
+opensrc/
