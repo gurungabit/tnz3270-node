@@ -21,6 +21,7 @@ function App() {
   const [host, setHost] = useState('127.0.0.1');
   const [port, setPort] = useState('3270');
   const [ssl, setSsl] = useState(false);
+  const [verifyCert, setVerifyCert] = useState(true);
   const [loginRunning, setLoginRunning] = useState(false);
   const [loginLogs, setLoginLogs] = useState<string[]>([]);
 
@@ -147,6 +148,11 @@ function App() {
         ev.preventDefault();
       }
 
+      // Ctrl+V paste — let it through to the paste handler
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'v') {
+        return;
+      }
+
       // Allow reset even when locked (Ctrl+R or Escape while locked)
       if (ev.ctrlKey && ev.key === 'r') {
         sendWs({ action: 'key', val: 'reset' });
@@ -197,7 +203,16 @@ function App() {
       }
     });
 
-    
+    // Handle paste
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!stateRef.current.connected || stateRef.current.locked) return;
+      const text = e.clipboardData?.getData('text');
+      if (text) {
+        sendWs({ action: 'type', text });
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+
     const handleMouse = (e: MouseEvent) => {
       if (!stateRef.current.connected || stateRef.current.locked) return;
 
@@ -228,6 +243,7 @@ function App() {
     }, 100);
 
     return () => {
+      document.removeEventListener('paste', handlePaste);
       if (term.element) {
         term.element.removeEventListener('mousedown', handleMouse);
       }
@@ -241,7 +257,7 @@ function App() {
     if (connected) {
       wsRef.current?.send(JSON.stringify({ action: 'disconnect' }));
     } else {
-      wsRef.current?.send(JSON.stringify({ action: 'connect', host, port: parseInt(port), secure: ssl }));
+      wsRef.current?.send(JSON.stringify({ action: 'connect', host, port: parseInt(port), secure: ssl, verifyCert }));
     }
   };
 
@@ -275,16 +291,22 @@ function App() {
             style={{width: '80px'}}
             disabled={connected}
           />
-          <label style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#888', fontSize: '0.8rem', cursor: 'pointer'}}>
-            <input
-              type="checkbox"
-              checked={ssl}
-              onChange={e => setSsl(e.target.checked)}
-              disabled={connected}
-              style={{accentColor: '#4af626'}}
-            />
+          <label style={{display: 'flex', alignItems: 'center', gap: '6px', color: ssl ? '#4af626' : '#888', fontSize: '0.8rem', cursor: 'pointer'}}>
+            <span className="toggle">
+              <input type="checkbox" checked={ssl} onChange={e => setSsl(e.target.checked)} disabled={connected} />
+              <span className="toggle-track" />
+            </span>
             SSL
           </label>
+          {ssl && (
+            <label style={{display: 'flex', alignItems: 'center', gap: '6px', color: verifyCert ? '#4af626' : '#888', fontSize: '0.8rem', cursor: 'pointer'}}>
+              <span className="toggle">
+                <input type="checkbox" checked={verifyCert} onChange={e => setVerifyCert(e.target.checked)} disabled={connected} />
+                <span className="toggle-track" />
+              </span>
+              Verify
+            </label>
+          )}
           <button
             className={connected ? '' : 'primary'}
             onClick={handleConnect}

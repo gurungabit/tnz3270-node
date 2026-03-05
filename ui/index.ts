@@ -37,7 +37,7 @@ function renderAnsiScreen(tnz: Tnz): string {
     
     if (eh === 0xf1) codes.push('5');
     if (eh === 0xf2) codes.push('7');
-    if (eh === 0xf4) codes.push('4');
+    if (eh === 0xf4 && char !== ' ') codes.push('4');
     
     const format = codes.length > 0 ? `\x1B[${codes.join(';')}m` : '\x1B[0m';
     out += `${format}${char}`;
@@ -122,7 +122,7 @@ Bun.serve<number>({
           });
 
           connections.set(sessionId, tnz);
-          await tnz.connect(payload.host, payload.port || 3270, { secure: payload.secure });
+          await tnz.connect(payload.host, payload.port || 3270, { secure: payload.secure, verifyCert: payload.verifyCert });
           wsSend(ws, JSON.stringify({ type: 'connected' }));
           updateScreen();
           return;
