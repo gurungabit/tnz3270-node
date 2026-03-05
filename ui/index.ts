@@ -1,5 +1,5 @@
 import { Tnz } from '../src/core/tnz';
-import { Ati } from '../src/automation/ati';
+import { Session } from './session';
 // @ts-ignore
 import indexHtml from './index.html';
 
@@ -207,71 +207,63 @@ Bun.serve<number>({
           }
 
           const log = (msg: string) => wsSend(ws, JSON.stringify({ type: 'loginLog', message: msg }));
-          const ati = new Ati();
-          ati.registerSession('WEB', tnz);
-
-          // Restore the onScreenUpdate so the UI keeps refreshing
-          const origUpdate = updateScreen;
-          tnz.onScreenUpdate = origUpdate;
+          const s = new Session(tnz);
+          tnz.onScreenUpdate = updateScreen;
 
           (async () => {
             try {
               log('Waiting for initial screen...');
-              await ati.wait(5, () => ati.scrhas('Hercules Version') || ati.scrhas('Logon ===>'));
-              origUpdate();
+              await s.waitFor(() => s.hasText('Hercules Version') || s.hasText('Logon ===>'), 5);
+              updateScreen();
 
-              if (ati.scrhas('Hercules Version')) {
+              if (s.hasText('Hercules Version')) {
                 log('Clearing Hercules splash...');
-                await ati.send('[enter]');
-                await ati.wait(30, () => !ati.scrhas('Hercules Version'));
-                origUpdate();
+                await s.enter();
+                await s.waitForTextGone('Hercules Version', 30);
+                updateScreen();
               }
 
               log('Waiting for Logon prompt...');
-              let rc = await ati.wait(30, () => ati.scrhas('Logon ===>'));
-              if (rc === 0) throw new Error('Timeout waiting for Logon prompt');
-              origUpdate();
+              await s.waitForText('Logon ===>', 30);
+              updateScreen();
 
               log('Logging in as HERC01...');
-              await ati.send('[clear]');
-              await ati.wait(2, () => !ati.keyLock);
-              await ati.send('L HERC01[enter]');
+              await s.clear();
+              await s.waitForKeyboard(2);
+              await s.enter('L HERC01');
 
-              rc = await ati.wait(10, () => ati.scrhas('PASSWORD'));
-              if (rc === 0) throw new Error('Timeout waiting for password prompt');
-              origUpdate();
+              await s.waitForText('PASSWORD');
+              updateScreen();
 
               log('Entering password...');
-              await ati.send('CUL8TR[enter]');
+              await s.enter('CUL8TR');
 
-              rc = await ati.wait(10, () => ati.scrhas('Welcome to the TSO system'));
-              if (rc === 0) throw new Error('Timeout waiting for Welcome banner');
-              origUpdate();
+              await s.waitForText('Welcome to the TSO system');
+              updateScreen();
 
               log('Clearing welcome prompts...');
-              await ati.send('[enter]');
-              await ati.wait(5, () => ati.scrhas('***'));
-              await ati.send('[enter]');
+              await s.enter();
+              await s.waitForText('***', 5);
+              await s.enter();
 
-              rc = await ati.wait(10, () => ati.scrhas('Option ===>'));
-              if (rc === 0) throw new Error('Timeout waiting for ISPF menu');
-              origUpdate();
+              await s.waitForText('Option ===>');
+              updateScreen();
               log('Login complete - at ISPF Main Menu');
 
               log('Logging out...');
-              await ati.send('X[enter]');
-              await ati.wait(10, () => ati.scrhas('READY'));
-              origUpdate();
+              await s.enter('X');
+              await s.waitForText('READY');
+              updateScreen();
 
-              await ati.send('LOGOFF[enter]');
-              await ati.wait(10, () => ati.scrhas('Logon ===>'));
-              origUpdate();
+              await s.enter('LOGOFF');
+              await s.waitForText('Logon ===>');
+              updateScreen();
 
               log('SUCCESS: Login/logout cycle complete');
               wsSend(ws, JSON.stringify({ type: 'loginDone', success: true }));
             } catch (err) {
               log('FAILED: ' + String(err));
-              origUpdate();
+              updateScreen();
               wsSend(ws, JSON.stringify({ type: 'loginDone', success: false, error: String(err) }));
             }
           })();
