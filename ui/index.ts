@@ -77,7 +77,7 @@ function renderAnsiScreen(tnz: Tnz): string {
     if (underline[i]) codes.push('4');
     else if (eh === 0xf4 && char !== ' ') codes.push('4');
 
-    const format = codes.length > 0 ? `\x1B[${codes.join(';')}m` : '\x1B[0m';
+    const format = `\x1B[0;${codes.join(';')}m`;
     out += `${format}${char}`;
   }
   out += '\x1B[0m';

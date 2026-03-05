@@ -237,15 +237,36 @@ function App() {
       sendWs({ action: 'setCursor', row, col });
     };
 
+    // Handle right-click paste on xterm's internal textarea
+    const handlePaste = (e: Event) => {
+      const clipboardEvent = e as ClipboardEvent;
+      const text = clipboardEvent.clipboardData?.getData('text');
+      if (text && stateRef.current.connected && !stateRef.current.locked) {
+        sendWs({ action: 'type', text });
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     setTimeout(() => {
       if (term.element) {
         term.element.addEventListener('mousedown', handleMouse);
+      }
+      // Attach paste listener directly on xterm's textarea (capture phase)
+      // to intercept before xterm's own handler stops propagation
+      const xtermTextarea = terminalRef.current?.querySelector('.xterm-helper-textarea');
+      if (xtermTextarea) {
+        xtermTextarea.addEventListener('paste', handlePaste, true);
       }
     }, 100);
 
     return () => {
       if (term.element) {
         term.element.removeEventListener('mousedown', handleMouse);
+      }
+      const xtermTextarea = terminalRef.current?.querySelector('.xterm-helper-textarea');
+      if (xtermTextarea) {
+        xtermTextarea.removeEventListener('paste', handlePaste, true);
       }
       wsRef.current?.close();
       term.dispose();
